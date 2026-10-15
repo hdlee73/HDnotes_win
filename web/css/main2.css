@@ -240,6 +240,19 @@ body.m2-resizing[data-m2-axis="y"]{cursor:row-resize!important}
 .sync-list{max-height:46vh;overflow:auto;border:1px solid rgba(0,0,0,.08);border-radius:10px}
 .sync-row{display:flex;gap:10px;align-items:flex-start;padding:8px 10px;cursor:pointer;font-size:14px;border-bottom:1px solid rgba(0,0,0,.05)}
 .sync-row.off{opacity:.4;cursor:default}
+.sync-row{align-items:center;cursor:default}
+.sync-row.skip .sync-name{opacity:.55}
+.sync-row.conflict{background:#FFF6E5}
+.sync-name{flex:1 1 auto;min-width:0;overflow-wrap:anywhere}
+.sync-act{flex:0 0 auto;font:inherit;font-size:13px;padding:4px 6px;border:1px solid rgba(0,0,0,.15);border-radius:8px;background:#fff}
+.sync-found{display:flex;flex-wrap:wrap;gap:6px;align-items:center;min-height:28px}
+.sync-searching{font-size:13px;color:#007AFF}
+.sync-chip{font:inherit;font-size:13px;padding:5px 10px;border:1px solid rgba(0,0,0,.15);border-radius:14px;background:#fff;cursor:pointer}
+.sync-chip.on{border-color:#007AFF;color:#007AFF;background:#EAF3FF}
+.sync-quick{display:flex;flex-wrap:wrap;gap:6px}
+.sync-summary{font-size:14px;font-weight:600}
+.sync-warn{font-size:13px;color:#A15C00;background:#FFF6E5;border-radius:8px;padding:6px 10px}
+.sync-more{font:inherit;font-size:13px;color:#007AFF;background:none;border:0;padding:8px 10px;cursor:pointer;width:100%;text-align:left}
 .sync-row small{display:block;font-size:12px;color:#8E8E93;margin-top:2px}
 .sync-row input{margin-top:3px}
 

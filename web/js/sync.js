@@ -1,6 +1,9 @@
-// Same-network device sync (user triggered, one-way whole-document overwrite). The phone runs a tiny HTTP server while its
-// "다른 기기와 동기화" card is open; this side is the client. The user picks documents (library-relative paths) and a direction:
-//   push = PC -> phone (PDF + notes + referenced images/recordings overwrite the phone's), pull = phone -> PC.
+// Same-network device sync (user triggered, whole-document copies). The phone runs a tiny HTTP server while its
+// "다른 기기와 동기화" card is open; this side is the client and finds the phone by a UDP probe (host net.discover) or a typed address.
+// Each document (library-relative path) gets an action: push = PC -> phone (PDF + notes + referenced images/recordings overwrite
+// the phone's), pull = phone -> PC, or skip. planSync() proposes the actions two-way: it compares both sides with what they were
+// right after the last sync with this phone (the baseline), so only the side that changed is copied and edits on both sides are
+// flagged as conflicts (the newer one wins unless the user changes it). Deletions are never copied.
 // Pure logic: all I/O comes through `env`:
 //   env.http({url, method, headers, text, readPath, savePath}) -> {status, text}
 //   env.pcPath(rel) -> absolute path of the library document on this device
@@ -43,6 +46,44 @@ export function buildRows(phoneList, pcList) {
   return rows.sort((a, b) => a.path.localeCompare(b.path, 'ko'));
 }
 
+const SAME_MS = 2000;           // file-system / clock rounding when comparing a side with its own baseline
+const FIRST_SAME_MS = 120000;   // first sync with a phone: two clocks, so only a clear difference picks a winner
+
+/**
+ * Two-way plan. phoneList / pcList: [{path,size,mtime}]; base: {path: {pc: mtime, phone: mtime}} from the last sync with this phone.
+ * Returns rows sorted by path: {path, pc, phone, action:'push'|'pull'|'skip', why, conflict}
+ *   why: 'same' | 'pc-changed' | 'phone-changed' | 'both-changed' | 'newer' | 'pc-new' | 'phone-new' | 'phone-deleted' | 'pc-deleted'
+ */
+export function planSync(phoneList, pcList, base = {}) {
+  const rows = buildRows(phoneList, pcList);
+  for (const r of rows) {
+    const b = base[r.path]; r.conflict = false;
+    if (r.pc && r.phone) {
+      if (b) {
+        const pcCh = Math.abs(r.pc.mtime - b.pc) > SAME_MS, phCh = Math.abs(r.phone.mtime - b.phone) > SAME_MS;
+        if (pcCh && phCh) { r.conflict = true; r.why = 'both-changed'; r.action = r.pc.mtime >= r.phone.mtime ? 'push' : 'pull'; }
+        else if (pcCh) { r.why = 'pc-changed'; r.action = 'push'; }
+        else if (phCh) { r.why = 'phone-changed'; r.action = 'pull'; }
+        else { r.why = 'same'; r.action = 'skip'; }
+      } else if (Math.abs(r.pc.mtime - r.phone.mtime) <= FIRST_SAME_MS && r.pc.size === r.phone.size) { r.why = 'same'; r.action = 'skip'; }
+      else { r.why = 'newer'; r.action = r.pc.mtime >= r.phone.mtime ? 'push' : 'pull'; }
+    } else if (r.pc) { r.why = b ? 'phone-deleted' : 'pc-new'; r.action = b ? 'skip' : 'push'; }
+    else { r.why = b ? 'pc-deleted' : 'phone-new'; r.action = b ? 'skip' : 'pull'; }
+  }
+  return rows;
+}
+
+/** Baseline after a sync: every path now on both sides that was copied or already the same (failed / skipped-different rows keep their old entry). */
+export function nextBaseline(base, phoneList, pcList, settled) {
+  const out = { ...base }, phone = new Map(phoneList.map(d => [d.path, d])), pc = new Set(pcList.map(d => d.path));
+  for (const d of pcList) {
+    const p = phone.get(d.path);
+    if (p && settled.has(d.path)) out[d.path] = { pc: d.mtime, phone: p.mtime };
+  }
+  for (const k of Object.keys(out)) if (!phone.has(k) && !pc.has(k)) delete out[k];
+  return out;
+}
+
 export class SyncClient {
   constructor(env, address, code) {
     const a = parseAddress(address);
@@ -54,6 +95,11 @@ export class SyncClient {
     if (r.status === 403) throw new SyncError('코드가 맞지 않습니다');
     if (r.status === 429) throw new SyncError('코드를 너무 여러 번 틀렸습니다. 휴대폰에서 창을 다시 여세요');
     return r;
+  }
+  /** {name,id,version} of the phone, or null for an app version without /v1/info. */
+  async info() {
+    const r = await this.req('/v1/info'); if (r.status !== 200) return null;
+    try { return JSON.parse(r.text); } catch (e) { return null; }
   }
   async library() {
     const r = await this.req('/v1/library'); if (r.status !== 200) throw new SyncError('문서 목록을 받지 못했습니다 (' + r.status + ')');

@@ -20,6 +20,7 @@ PDF·한글·Office 문서를 열어 펜으로 필기하고, 새 노트를 만�
 - 마우스 사용: 휠·방향키·드래그로 페이지 넘기기, Ctrl+휠 확대/축소, 왼쪽 아래 확대 버튼(＋ / 100% / －)
 - AVI·WMV 등 앱 안에서 재생할 수 없는 동영상은 넣을 때 MP4로 자동 변환(Windows 내장 기능, 오프라인)
 - 문서함 전체 백업/복원: Everynote·HDnotes(Windows·안드로이드) 백업과 호환
+- **휴대폰과 동기화**: 같은 Wi-Fi·핫스팟·USB 테더링에서 안드로이드 HDnotes를 자동으로 찾아, 양쪽에서 바뀐 문서만 서로 맞춤(도구 → 다른 기기와 동기화, [자세히](docs/device-sync.md))
 
 ## 설치
 [Releases](https://github.com/hdlee73/HDnotes_win/releases)에서 받습니다.
