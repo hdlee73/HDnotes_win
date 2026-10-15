@@ -906,7 +906,7 @@ M.showLibrary = function () {
     backupFolder: folder => this.startLibraryBackup(folder),
     restoreBackup: () => this.startLibraryRestore(),
     removed: files => { for (const s of [...this.sessions]) if (files.some(f => samePath(f, s.uri))) this.closeDocument(s); },
-  });
+  }, { mode: samePath(this.libraryFolder, this.library.root) ? 0 : 3 });   // Samsung Notes opens on 모든 노트; a sub-folder reopens where it was
   this.libraryDialog.show();
 };
 /** Lets the user pick a PDF or picture to use as the background of new note pages (kept as a private copy). */
@@ -1569,7 +1569,9 @@ M.showInsertMenu = function (anchor) {
   const rows = [new R('메모', 'ic_note_add', () => this.toggleMemoMode()).tint('#FF9500').selected(!!this.memoMode),
     new R('하이라이트', 'ic_highlight', () => this.toggleHighlight()).tint('#F5C400').selected(!!this.highlightMode)];
   if (this.highlightMode) rows.push(new R('하이라이트 굵기', 'ic_highlight', () => later(() => this.showMarkHighlightMenu(anchor))).tint('#F5C400'));
-  AnchoredMenu.show(anchor, true, [...rows, ...this.insertRows()], null);
+  // Samsung order: things to insert first, then the writing aids after a divider; opens below the header button.
+  const below = !!(anchor && anchor.closest && anchor.closest('.m-hactions'));
+  AnchoredMenu.show(anchor, !below, [...this.insertRows(), AnchoredMenu.Row.divider(), ...rows], null);
 };
 /** Long press on empty paper: the same insert menu, and whatever is chosen is placed right there. */
 M.showInsertMenuAt = function (view, page, x, y, viewX, viewY) {

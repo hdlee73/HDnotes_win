@@ -2,7 +2,8 @@
 // The <svg> wrapper (stroke, fill none, stroke-width) comes from util.js icon(); entries hold only the inner shapes.
 // Shapes that need a fill say so themselves (fill='currentColor' stroke='none'). The tool_* glyphs are the coloured tool icons of the
 // editor's right tool strip: their coloured part follows currentColor, the outline stays ink.
-// Regenerate web/icons/*.svg after editing: node tools/export_icons.mjs
+// Regenerate web/icons/*.svg after editing: node tools/export_icons.mjs  (shared glyphs: node tools/import_shared_icons.mjs first)
+import { SHARED_ICONS } from './icons-shared.js';
 const P = d => `<path d='${d}'/>`;
 const DOT = (x, y, r = 1.35) => `<circle cx='${x}' cy='${y}' r='${r}' fill='currentColor' stroke='none'/>`;
 const STAR = 'M12 3.6l2.5 5.2 5.7.8-4.1 4 1 5.6-5.1-2.7-5.1 2.7 1-5.6-4.1-4 5.7-.8z';
@@ -165,6 +166,8 @@ export const ICONS = {
   ic_list_number: P('M11 6.5h9M11 12h9M11 17.5h9') + `<path d='M4 4.9l1.4-.9v4.6M3.9 10.6a1.5 1.5 0 0 1 2.9.5c0 .9-1.6 1.6-2.9 2.9h3M3.9 16.1h2.6l-1.3 1.5a1.4 1.4 0 1 1-1.4 1.9' stroke-width='1.3'/>`,
   ic_list_check: `<rect x='3.5' y='4.5' width='5' height='5' rx='1'/><rect x='3.5' y='14.5' width='5' height='5' rx='1'/>` + P('M4.9 7.1l1.1 1.1 1.7-2.2M12 7h8M12 17h8'),
 };
+// The glyphs shared with the Android app win, so both apps look alike; the ones above fill the web-only names.
+Object.assign(ICONS, SHARED_ICONS);
 
 // Library folder colours as line-icon tints (the stored folder colours stay the same values; this is only how they are drawn).
 export const FOLDER_TINTS = { 0xFF8FA8F0: '#5485EE', 0xFFF4B67E: '#FF7043', 0xFF7FCFB2: '#009E7C', 0xFFB9A0F2: '#BB5FCB', 0xFFF2A3BA: '#FF4133', 0xFFA6B2C6: '#797979' };
