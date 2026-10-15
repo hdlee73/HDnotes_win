@@ -20,7 +20,7 @@ import { ColorPicker } from './ui/colorpicker.js';
 import { printDocument } from './print.js';
 import { showAboutOffline } from './offline.js';
 import { createBackup, restoreBackup, compareVersions, AUTHOR_LINE, APP_NAME, RELEASE_DATE } from './backup.js';
-import { SyncClient, SyncError, transferDocument, buildRows, relPath } from './sync.js';
+import { SyncClient, SyncError, transferDocument, planSync, nextBaseline, relPath } from './sync.js';
 
 // ------------------------------------------------------------------------------------------------------------------ constants
 export const NAVY = '#1C1C1E', ACCENT = '#007AFF', ACTIVE_BG = '#E5F0FF', ACTIVE_FG = '#007AFF', GRAY = '#8E8E93', RED = '#FF3B30';
@@ -795,16 +795,37 @@ M.importSidecar = async function () {
   });
 };
 
-// ---- same-network device sync (phone shows address + code; user picks documents + direction; whole-document overwrite) -----------------
+// ---- same-network device sync (phone shows a code and answers a UDP probe; two-way plan per document; whole-document copies) -----------
 M.showDeviceSync = function () {
-  const addr = inputField({ hint: '주소 (예: 192.168.0.12:43125)', text: this.recentPrefs.getString('sync_address', '') });
+  const remembered = this.recentPrefs.getString('sync_address', '');
+  const addr = inputField({ hint: '주소 (예: 192.168.0.12:43125)', text: remembered });
   const code = inputField({ hint: '코드 6자리', text: '' });
   code.input.inputMode = 'numeric'; code.input.maxLength = 6;
-  const note = h('div', { class: 'sync-note' }, '같은 Wi-Fi나 휴대폰 핫스팟·USB 테더링으로 연결된 상태에서, 휴대폰 앱의 ‘도구 → 다른 기기와 동기화’를 열어 두고 표시된 주소와 코드를 입력하세요. 다음 화면에서 문서와 방향을 고릅니다. 자동으로 동기화되지 않습니다.');
+  let typed = false; addr.input.addEventListener('input', () => { typed = true; });
+  const found = h('div', { class: 'sync-found' });
+  const note = h('div', { class: 'sync-note' }, '같은 Wi-Fi나 휴대폰 핫스팟·USB 테더링으로 연결된 상태에서 휴대폰 앱의 ‘도구 → 다른 기기와 동기화’를 열어 두세요. 휴대폰을 자동으로 찾으면 코드만 입력하면 됩니다. 다음 화면에서 양쪽을 비교해 바뀐 문서만 맞춥니다.');
+  const search = async () => {
+    found.textContent = ''; found.append(h('span', { class: 'sync-searching' }, '휴대폰 찾는 중…'));
+    let phones = [];
+    try { phones = await host.netDiscover(1500); } catch (e) { phones = []; }
+    found.textContent = '';
+    if (!phones.length) {
+      found.append(h('span', { class: 'sync-note' }, '휴대폰을 자동으로 찾지 못했습니다. 휴대폰 화면의 주소를 입력하세요. '),
+        h('button', { class: 'sync-chip', type: 'button', onclick: search }, '다시 찾기'));
+      return;
+    }
+    const pick = (p, chip) => { addr.input.value = `${p.host}:${p.port}`; typed = false; for (const c of found.querySelectorAll('.sync-chip')) c.classList.toggle('on', c === chip); setTimeout(() => code.input.focus(), 0); };
+    const chips = phones.map(p => { const c = h('button', { class: 'sync-chip', type: 'button', title: `${p.host}:${p.port}` }, `${p.name || '휴대폰'} · ${p.host}`); c.addEventListener('click', () => pick(p, c)); return c; });
+    found.append(h('span', { class: 'sync-note' }, phones.length === 1 ? '찾은 휴대폰' : '찾은 휴대폰 (하나를 고르세요)'), ...chips);
+    const same = phones.findIndex(p => `${p.host}:${p.port}` === addr.input.value.trim());
+    if (same >= 0) pick(phones[same], chips[same]);
+    else if (!typed && (phones.length === 1 || !addr.input.value.trim())) pick(phones[0], chips[0]);
+  };
   alertCard({
-    title: '기기 동기화', view: h('div', { class: 'sync-view' }, note, addr.view, code.view),
+    title: '기기 동기화', view: h('div', { class: 'sync-view' }, note, found, addr.view, code.view),
     positive: ['연결', () => this.connectDeviceSync(addr.input.value, code.input.value)], negative: ['취소'],
   });
+  search();
 };
 M.syncEnv = function () {
   const lib = this.library;
@@ -823,6 +844,19 @@ M.syncEnv = function () {
     hasAsset: n => AnnotationStore.hasAsset(n),
   };
 };
+/** This PC's library as [{path,size,mtime}] (mtime = PDF or notes, whichever is newer; same rule as the phone). */
+M.syncPcList = async function () {
+  const pc = [];
+  for (const f of await this.library.allDocuments('')) {
+    const rel = relPath(this.library.root, f); if (rel == null) continue;
+    const st = await host.stat(f);
+    pc.push({ path: rel, size: st.size, mtime: Math.max(st.mtime, await AnnotationStore.modified(f)) });
+  }
+  return pc;
+};
+M.syncBaseline = function (key) {
+  try { const v = JSON.parse(this.recentPrefs.getString('sync_base:' + key, '{}')); return v && typeof v === 'object' && !Array.isArray(v) ? v : {}; } catch (e) { return {}; }
+};
 M.connectDeviceSync = async function (address, codeText) {
   const retry = msg => alertCard({ title: '동기화 실패', message: msg, positive: ['다시 시도', () => this.showDeviceSync()], negative: ['닫기'] });
   let progress = null;
@@ -831,61 +865,89 @@ M.connectDeviceSync = async function (address, codeText) {
     this.recentPrefs.putString('sync_address', address.trim());
     progress = ProgressDialog.show('기기 동기화', '연결하는 중…');
     const phone = await client.library();
-    const pc = [];
-    for (const f of await this.library.allDocuments('')) {
-      const rel = relPath(this.library.root, f); if (rel == null) continue;
-      const st = await host.stat(f);
-      pc.push({ path: rel, size: st.size, mtime: Math.max(st.mtime, await AnnotationStore.modified(f)) });
-    }
+    const info = await client.info().catch(() => null);
+    const key = info && info.id ? 'id:' + info.id : 'addr:' + client.base.replace(/^http:\/\/|:\d+$/g, '');
+    const pc = await this.syncPcList();
     progress.dismiss(); progress = null;
-    this.pickSyncDocuments(client, buildRows(phone, pc), address, codeText);
+    const base = this.syncBaseline(key);
+    this.pickSyncDocuments(client, planSync(phone, pc, base), { key, base, name: info && info.name ? info.name : '휴대폰' });
   } catch (e) {
     if (progress) progress.dismiss();
     retry(e instanceof SyncError ? e.message : '연결에 실패했습니다: ' + errMsg(e));
   }
 };
-M.pickSyncDocuments = function (client, rows, address, codeText) {
+const SYNC_WHY = {
+  same: '변경 없음', 'pc-changed': 'PC에서 바뀜', 'phone-changed': '휴대폰에서 바뀜', 'both-changed': '양쪽에서 바뀜 · 더 최신 쪽을 골랐습니다',
+  'pc-new': 'PC에만 있음', 'phone-new': '휴대폰에만 있음', 'phone-deleted': '휴대폰에서 지워짐 · 건너뜀', 'pc-deleted': 'PC에서 지워짐 · 건너뜀',
+};
+M.pickSyncDocuments = function (client, rows, ctx) {
   const fmt = t => { const d = new Date(t); return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
-  let dir = 'push'; const picked = new Set();
-  const dirRow = h('div', { class: 'sync-dir' });
+  const auto = new Map(rows.map(r => [r.path, r.action]));
+  let showSame = false;
+  const summary = h('div', { class: 'sync-summary' });
   const list = h('div', { class: 'sync-list' });
   const foot = h('div', { class: 'sync-note' });
-  const render = () => {
-    const src = dir === 'push' ? 'pc' : 'phone', dst = dir === 'push' ? 'phone' : 'pc';
-    for (const r of rows) if (!r[src]) picked.delete(r.path);
-    list.textContent = '';
-    for (const r of rows) {
-      const usable = !!r[src], cb = h('input', { type: 'checkbox' }); cb.checked = picked.has(r.path); cb.disabled = !usable;
-      cb.addEventListener('change', () => { if (cb.checked) picked.add(r.path); else picked.delete(r.path); render2(); });
-      const info = `PC ${r.pc ? fmt(r.pc.mtime) : '없음'} · 휴대폰 ${r.phone ? fmt(r.phone.mtime) : '없음'}` + (r.newer ? ` · ${r.newer === 'pc' ? 'PC' : '휴대폰'}가 더 최신` : '');
-      list.append(h('label', { class: 'sync-row' + (usable ? '' : ' off') }, cb, h('span', {}, h('b', {}, r.path), h('small', {}, info + (r[dst] ? '' : ' · 새로 만들어짐')))));
-    }
-    if (!rows.length) list.append(h('div', { class: 'sync-note' }, '양쪽 모두 문서가 없습니다.'));
-    render2();
+  const why = r => r.why === 'newer' ? `처음 비교 · ${r.pc.mtime >= r.phone.mtime ? 'PC' : '휴대폰'}가 더 최신` : SYNC_WHY[r.why] || '';
+  const count = () => {
+    const n = { push: 0, pull: 0, skip: 0 }; for (const r of rows) n[r.action]++;
+    summary.textContent = `보내기 ${n.push} · 받기 ${n.pull} · 건너뛰기 ${n.skip}`;
+    foot.textContent = n.push + n.pull ? `${ctx.name}와 ${n.push + n.pull}개 문서를 맞춥니다. 받는 쪽의 같은 문서는 PDF·노트·그림·녹음까지 통째로 바뀌며 되돌릴 수 없습니다.` : '맞출 문서가 없습니다. 양쪽이 같습니다.';
   };
-  const render2 = () => { foot.textContent = picked.size ? `선택한 ${picked.size}개를 ${dir === 'push' ? '휴대폰' : '이 PC'}에 통째로 덮어씁니다 (PDF·노트·그림·녹음). 같은 이름의 문서는 되돌릴 수 없습니다.` : '덮어쓸 문서를 고르세요.'; };
-  for (const [v, label] of [['push', 'PC → 휴대폰'], ['pull', '휴대폰 → PC']]) {
-    const r = h('input', { type: 'radio', name: 'sync-dir' }); r.checked = v === dir; r.addEventListener('change', () => { dir = v; render(); });
-    dirRow.append(h('label', { class: 'sync-dirbtn' }, r, h('b', {}, label)));
-  }
+  const render = () => {
+    list.textContent = '';
+    let hidden = 0;
+    for (const r of rows) {
+      if (!showSame && r.why === 'same' && r.action === 'skip') { hidden++; continue; }
+      const sel = h('select', { class: 'sync-act', 'aria-label': r.path + ' 동기화 방법' });
+      for (const [v, label, ok] of [['push', 'PC → 휴대폰', !!r.pc], ['pull', '휴대폰 → PC', !!r.phone], ['skip', '건너뛰기', true]]) {
+        const o = h('option', { value: v }, label); o.disabled = !ok; sel.append(o);
+      }
+      sel.value = r.action;
+      sel.addEventListener('change', () => { r.action = sel.value; row.classList.toggle('skip', r.action === 'skip'); count(); });
+      const info = `PC ${r.pc ? fmt(r.pc.mtime) : '없음'} · 휴대폰 ${r.phone ? fmt(r.phone.mtime) : '없음'} · ${why(r)}`;
+      const row = h('div', { class: 'sync-row' + (r.conflict ? ' conflict' : '') + (r.action === 'skip' ? ' skip' : '') }, h('span', { class: 'sync-name' }, h('b', {}, r.path), h('small', {}, info)), sel);
+      list.append(row);
+    }
+    if (!rows.length) list.append(h('div', { class: 'sync-note sync-empty' }, '양쪽 모두 문서가 없습니다.'));
+    else if (hidden) list.append(h('button', { class: 'sync-more', type: 'button', onclick: () => { showSame = true; render(); } }, `변경 없는 문서 ${hidden}개 보기`));
+    count();
+  };
+  const setAll = mode => {
+    for (const r of rows) r.action = mode === 'auto' ? auto.get(r.path) : mode === 'push' ? (r.pc ? 'push' : 'skip') : (r.phone ? 'pull' : 'skip');
+    if (mode !== 'auto') showSame = true;
+    render();
+  };
+  const quick = h('div', { class: 'sync-quick' },
+    h('button', { class: 'sync-chip', type: 'button', onclick: () => setAll('auto') }, '자동(권장)'),
+    h('button', { class: 'sync-chip', type: 'button', onclick: () => setAll('push') }, '모두 PC → 휴대폰'),
+    h('button', { class: 'sync-chip', type: 'button', onclick: () => setAll('pull') }, '모두 휴대폰 → PC'));
   render();
+  const conflicts = rows.filter(r => r.conflict).length;
+  const warn = conflicts ? h('div', { class: 'sync-warn' }, `양쪽에서 모두 바뀐 문서가 ${conflicts}개 있습니다. 더 최신 쪽을 골라 두었으니 확인하세요.`) : null;
   const dlg = alertCard({
-    title: '덮어쓸 문서 선택', view: h('div', { class: 'sync-view' }, dirRow, list, foot),
-    positive: ['덮어쓰기', () => { if (picked.size) this.runDeviceSync(client, rows.filter(r => picked.has(r.path)).map(r => r.path), dir); else toast('문서를 먼저 고르세요'); }],
+    title: `${ctx.name}와 동기화`, view: h('div', { class: 'sync-view' }, summary, warn, quick, list, foot),
+    positive: ['동기화', () => this.runDeviceSync(client, rows, ctx)],
     negative: ['취소'],
   });
-  dialogWidth(dlg, { width: '520px', maxWidth: '94vw', maxHeight: '86vh' });
+  dialogWidth(dlg, { width: '600px', maxWidth: '94vw', maxHeight: '86vh' });
 };
-M.runDeviceSync = async function (client, paths, dir) {
+/** rows: planSync rows with the chosen actions. Afterwards stores the new baseline for this phone (copied + unchanged documents). */
+M.runDeviceSync = async function (client, rows, ctx = null) {
+  const todo = rows.filter(r => r.action === 'push' || r.action === 'pull');
   const progress = ProgressDialog.show('기기 동기화', '준비 중…'); const failed = []; let done = 0;
-  for (let i = 0; i < paths.length; i++) {
-    const rel = paths[i];
-    try { await transferDocument(client, rel, dir, t => progress.setMessage(`(${i + 1}/${paths.length}) ${baseName(rel)}\n${t}`)); done++; }
+  const settled = new Set(rows.filter(r => r.action === 'skip' && r.why === 'same').map(r => r.path));
+  for (let i = 0; i < todo.length; i++) {
+    const rel = todo[i].path;
+    try { await transferDocument(client, rel, todo[i].action, t => progress.setMessage(`(${i + 1}/${todo.length}) ${baseName(rel)}\n${t}`)); done++; settled.add(rel); }
     catch (e) { failed.push(`${rel}: ${e instanceof SyncError ? e.message : errMsg(e)}`); if (/코드/.test(String(e && e.message))) break; }
+  }
+  if (ctx) {
+    progress.setMessage('동기화 기록 저장 중');
+    try { this.recentPrefs.putString('sync_base:' + ctx.key, JSON.stringify(nextBaseline(ctx.base, await client.library(), await this.syncPcList(), settled))); } catch (e) { /* next sync just compares by date again */ }
   }
   progress.dismiss();
   if (this.libraryDialog && this.libraryDialog.isShowing && this.libraryDialog.isShowing() && this.libraryDialog.refresh) { try { this.libraryDialog.refresh(); } catch (e) { /* */ } }
-  if (!failed.length) toast(`동기화 완료 (${done}개)`);
+  if (!failed.length) toast(todo.length ? `동기화 완료 (${done}개)` : '양쪽 문서가 이미 같습니다');
   else alertCard({ title: `동기화 완료 ${done}개 · 실패 ${failed.length}개`, message: failed.join('\n'), positive: ['확인'] });
 };
 

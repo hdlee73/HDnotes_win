@@ -19,6 +19,7 @@
 //   office.engines() -> {word,excel,powerpoint,libreoffice:path|null}
 //   office.convert({id,path,kind}) -> {pdf:path}   (events office.progress {id,text}); office.cancel({id})
 //   net.http({url,method,headers,text,readPath,savePath}) -> {status,text}   (plain http to private IPv4 addresses only: device sync)
+//   net.discover({ms}) -> [{host,port,name,id,version,platform}]   phones with the sync card open (UDP probe, port 43126)
 //   zip.create({path,entries:[{name,file}|{name,text}]}) -> {count} ; zip.entries({path}) -> [{name,size}] ; zip.readText({path,name}) -> string ; zip.extract({path,name,to})
 //   update.check() -> {version,page,notes,setupUrl,exeUrl,installed,arch} (GitHub releases of this project) ; update.install({url}) downloads the Setup and starts it with /UPDATE
 //   media.openExternal({path})         -> true   default Windows player (extension fixed to the real container)
@@ -113,6 +114,7 @@ const fake = {
       case 'office.convert': throw new Error('변환 엔진이 없습니다');
       case 'office.cancel': return true;
       case 'net.http': if (this.netHandler) return this.netHandler(a); throw new Error('브라우저에서는 지원하지 않습니다');
+      case 'net.discover': return this.discoverHandler ? this.discoverHandler(a) : [];
       case 'zip.create': {
         const entries = a.entries.map(e => ({ name: e.name, bytes: e.file ? this.files.get(this.norm(e.file)).bytes : new TextEncoder().encode(e.text || '') }));
         (this.zips ||= new Map()).set(P, entries); this.put(P, new Uint8Array([80, 75])); return { count: entries.length };
@@ -172,6 +174,7 @@ export const host = {
   saveDialog: (title, name, filters) => host.call('dialog.save', { title, name, filters }),
   shellOpen: pathOrUrl => host.call('shell.open', /^(https?|ms-settings):/i.test(pathOrUrl) ? { url: pathOrUrl } : { path: pathOrUrl }),
   netHttp: o => host.call('net.http', o),
+  netDiscover: (ms = 1500) => host.call('net.discover', { ms }),
   zipCreate: (path, entries) => host.call('zip.create', { path, entries }),
   zipEntries: path => host.call('zip.entries', { path }),
   zipReadText: (path, name) => host.call('zip.readText', { path, name }),

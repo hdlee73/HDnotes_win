@@ -134,6 +134,7 @@ sealed class Bridge
             case "dialog.open": return await win.Dispatcher.InvokeAsync(() => DialogOpen(a));
             case "dialog.save": return await win.Dispatcher.InvokeAsync(() => DialogSave(a));
             case "net.http": return await NetHttp(a);
+            case "net.discover": return await NetDiscover(a);
             case "zip.create": return await Task.Run(() => ZipCreate(a));
             case "zip.entries": return await Task.Run(() => ZipEntries(PathPolicy.ReadPath(S(a, "path"))));
             case "zip.readText": return await Task.Run(() => ZipReadText(PathPolicy.ReadPath(S(a, "path")), S(a, "name")));
@@ -278,6 +279,60 @@ sealed class Bridge
         catch (TaskCanceledException) { throw new IOException("기기가 응답하지 않습니다"); }
         catch (System.Net.Http.HttpRequestException e) { throw new IOException("기기에 연결할 수 없습니다 (" + (e.InnerException?.Message ?? e.Message) + ")"); }
         finally { upload?.Dispose(); }
+    }
+
+    // ---- finds phones whose 'other device sync' card is open: UDP probe to every private link's broadcast address and gateway (the phone itself
+    // on USB tethering / hotspot). This PC only sends and reads the replies, so no inbound firewall rule is needed.
+    const int DiscoveryPort = 43126;
+    static async Task<object> NetDiscover(JsonElement a)
+    {
+        var ms = a.ValueKind == JsonValueKind.Object && a.TryGetProperty("ms", out var mv) && mv.ValueKind == JsonValueKind.Number ? Math.Clamp(mv.GetInt32(), 300, 5000) : 1500;
+        var targets = new HashSet<System.Net.IPAddress> { System.Net.IPAddress.Broadcast };
+        foreach (var ni in System.Net.NetworkInformation.NetworkInterface.GetAllNetworkInterfaces())
+        {
+            if (ni.OperationalStatus != System.Net.NetworkInformation.OperationalStatus.Up || ni.NetworkInterfaceType == System.Net.NetworkInformation.NetworkInterfaceType.Loopback) continue;
+            System.Net.NetworkInformation.IPInterfaceProperties props;
+            try { props = ni.GetIPProperties(); } catch { continue; }
+            foreach (var u in props.UnicastAddresses)
+            {
+                if (u.Address.AddressFamily != System.Net.Sockets.AddressFamily.InterNetwork || u.IPv4Mask == null || !IsPrivateHost(u.Address.ToString())) continue;
+                var ip = u.Address.GetAddressBytes(); var mask = u.IPv4Mask.GetAddressBytes(); var b = new byte[4];
+                for (int i = 0; i < 4; i++) b[i] = (byte)(ip[i] | ~mask[i]);
+                targets.Add(new System.Net.IPAddress(b));
+            }
+            foreach (var g in props.GatewayAddresses)
+                if (g.Address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork && IsPrivateHost(g.Address.ToString())) targets.Add(g.Address);
+        }
+        var probe = System.Text.Encoding.UTF8.GetBytes("HDNOTES-DISCOVER 1");
+        var found = new Dictionary<string, object>();
+        using var udp = new System.Net.Sockets.UdpClient(new System.Net.IPEndPoint(System.Net.IPAddress.Any, 0)) { EnableBroadcast = true };
+        async Task SendAll() { foreach (var t in targets) { try { await udp.SendAsync(probe, probe.Length, new System.Net.IPEndPoint(t, DiscoveryPort)); } catch { } } }
+        await SendAll();
+        var deadline = DateTime.UtcNow.AddMilliseconds(ms); var resent = false;
+        while (true)
+        {
+            var left = deadline - DateTime.UtcNow;
+            if (left <= TimeSpan.Zero) break;
+            if (!resent && left.TotalMilliseconds < ms / 2) { resent = true; await SendAll(); }   // one retry: a single broadcast is easily lost on Wi-Fi
+            using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(Math.Min(left.TotalMilliseconds, ms / 2.0)));
+            System.Net.Sockets.UdpReceiveResult r;
+            try { r = await udp.ReceiveAsync(cts.Token); }
+            catch (OperationCanceledException) { continue; }
+            catch (System.Net.Sockets.SocketException) { continue; }   // ICMP port-unreachable from a gateway that is not a phone
+            var hostIp = r.RemoteEndPoint.Address.ToString();
+            if (!IsPrivateHost(hostIp)) continue;
+            try
+            {
+                using var d = JsonDocument.Parse(r.Buffer);
+                var o = d.RootElement;
+                if (o.ValueKind != JsonValueKind.Object || !o.TryGetProperty("app", out var app) || app.GetString() != "HDnotes" || !o.TryGetProperty("port", out var pe) || pe.ValueKind != JsonValueKind.Number) continue;
+                string Str(string k) => o.TryGetProperty(k, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() : "";
+                var port = pe.GetInt32(); if (port <= 0 || port > 65535) continue;
+                found[hostIp + ":" + port] = new { host = hostIp, port, name = Str("name"), id = Str("id"), version = Str("version"), platform = Str("platform") };
+            }
+            catch (JsonException) { }
+        }
+        return found.Values.ToList();
     }
 
     // ---- whole-library backup: plain ZIP (same layout as the Android app's backup file)

@@ -3,7 +3,7 @@
 ; Per-user install by default (%LOCALAPPDATA%\Programs\HDnotes, no admin); the dialog / /ALLUSERS offers an all-users install.
 
 #ifndef AppVersion
-  #define AppVersion "1.0.0"
+  #define AppVersion "1.1.0"
 #endif
 #ifndef Arch
   #define Arch "x64"
