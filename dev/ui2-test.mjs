@@ -55,7 +55,8 @@ await pg.mouse.move(g.x+9,g.y+20); await pg.mouse.down(); await pg.mouse.move(g.
 const after=await pg.evaluate(()=>({l:app.bottomBar.getBoundingClientRect().left,saved:app.recentPrefs.getString('bar_pos','')}));
 check('grip drags the floating bar and remembers the spot', after.l<before-100&&after.saved!=='', JSON.stringify(after));
 await pg.evaluate(()=>app.toggleFloatBar()); await pg.waitForTimeout(200);
-check('toggle off docks it again', await pg.evaluate(()=>app.bottomBar.parentElement===app.contentCol&&!app.bottomBar.classList.contains('float')));
+// HDnotes: docking goes back to the default right-side tool strip (beside the page, in the content row)
+check('toggle off docks it again', await pg.evaluate(()=>app.bottomBar.parentElement===app.studySplit&&app.bottomBar.classList.contains('rail-right')&&!app.bottomBar.classList.contains('float')));
 
 // fullscreen toolbar stays
 await pg.evaluate(()=>{app.toggleDockPinned();app.toggleFullscreen()}); await pg.waitForTimeout(4500);

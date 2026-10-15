@@ -14,6 +14,9 @@ await pg.evaluate(async([b,p])=>{const {host}=await import('./js/host.js');host.
 await pg.waitForTimeout(1500);
 
 // 3/4: tab "+" menu = same card style, order 새 노트 / 파일 가져오기 / 저장된 문서 열기
+// (HDnotes: like Samsung Notes the tab strip only shows with two or more open documents, so open a second one first)
+await pg.evaluate(async([b,p])=>{const {host}=await import('./js/host.js');host._fake.put(p,new Uint8Array(b));await app.openPdf(p);},[bytes,LIB.replace('sample.pdf','sample2.pdf')]);
+await pg.waitForTimeout(1200);
 await pg.click('.m-tabadd'); await pg.waitForTimeout(300);
 const labels=await pg.evaluate(()=>[...document.querySelectorAll('.amenu .amenu-row .amenu-label')].map(e=>e.textContent));
 check('tab + menu order', JSON.stringify(labels)===JSON.stringify(['새 노트 만들기','파일 가져오기','저장된 문서 열기']), JSON.stringify(labels));

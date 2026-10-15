@@ -226,3 +226,5 @@
 .lib-root.docked .lib-scrim{display:none}
 .lib-root.docked .lib-panel{position:relative;width:100%;height:100%;border-radius:0;box-shadow:none;transform:none!important;padding:10px 16px 14px 14px}
 .lib-root.docked .lib-menu-btn{display:none}
+/* 휴지통: text-only 편집 / 비우기, no search box (Samsung Notes) */
+.lib-page.trash .lib-sbox{display:none}

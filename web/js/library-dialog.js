@@ -517,8 +517,8 @@ export class LibraryDialog {
   rebuildActions() {
     const a = this.actionsRow; a.textContent = '';
     if (this.mode === TRASH) {
-      a.append(this._tb('ic_check_circle', '편집', () => this.startSelection(), 'library_edit'),
-        this._tb('ic_delete', '비우기', () => this.confirmEmptyTrash(this._items.length), 'library_empty_trash'));
+      a.append(this._tb(null, '편집', () => this.startSelection(), 'library_edit'),
+        this._tb(null, '비우기', () => this.confirmEmptyTrash(this._items.length), 'library_empty_trash'));
       return;
     }
     a.append(

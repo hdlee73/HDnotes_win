@@ -355,7 +355,7 @@ const methods = {
     window.addEventListener('keydown', e => this.onKeyDown(e));
     window.addEventListener('focus', () => this.onResume());
     document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') this.onResume(); });
-    window.addEventListener('resize', () => { try { this.layoutStudyPanel(); } catch (err) { /* part 2 */ } try { this.reclampFloaters(); } catch (err) { /* not built yet */ } });
+    window.addEventListener('resize', () => { try { if (this.bottomBar && this._barPlaced && this.effectiveBarPlace() !== this._barPlaced) this.applyBarMode(); } catch (err) { /* not built yet */ } try { this.layoutStudyPanel(); } catch (err) { /* part 2 */ } try { this.reclampFloaters(); } catch (err) { /* not built yet */ } });
     document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement && this.fullscreen && !host.native) this.toggleFullscreen(); });
     const hasFiles = e => e.dataTransfer && [...(e.dataTransfer.types || [])].includes('Files');
     window.addEventListener('dragover', e => { if (hasFiles(e) && !e.defaultPrevented && this._droppableDocs(e.dataTransfer)) e.preventDefault(); });
@@ -1346,7 +1346,12 @@ const methods = {
   async openPdf(uri, textOnly = false, requestedPage = -1, activate = true) {
     // keep the empty-state welcome card hidden while a document is loading (it used to flash between the shelf closing and the page appearing)
     this.openingCount = (this.openingCount | 0) + 1; this.updateFloaters();
-    try { return await this.openPdfNow(uri, textOnly, requestedPage, activate); }
+    try {
+      const r = await this.openPdfNow(uri, textOnly, requestedPage, activate);
+      // a document opened from outside the library (open with, drag & drop, a link) comes to the front: the library page closes
+      if (activate && this.libraryDialog && this.libraryDialog.isShowing() && this.activeSession && samePath(this.activeSession.uri, uri)) this.libraryDialog.dismiss();
+      return r;
+    }
     finally { this.openingCount--; this.updateFloaters(); }
   },
   async openPdfNow(uri, textOnly, requestedPage, activate) {
@@ -1810,7 +1815,7 @@ const methods = {
   /** The place actually used: a side rail needs room, so a narrow window (phone-like) gets the bar at the bottom. */
   effectiveBarPlace() { const p = this.barPlace(); return (p === 'left' || p === 'right') && window.innerWidth < 600 ? 'bottom' : p; },
   barVertical() { const p = this.effectiveBarPlace(); return p === 'left' || p === 'right' || (p === 'float' && this.recentPrefs.getBoolean('bar_vertical', false)); },
-  floatBar() { return this.barPlace() !== 'bottom'; },
+  floatBar() { return this.barPlace() === 'float'; },
   setBarPlace(place) { this.recentPrefs.putString('bar_place', place); this.applyBarMode(); },
   setBarOrientation(vertical) { this.recentPrefs.putBoolean('bar_vertical', vertical); this.applyBarMode(); },
   showBarLayoutMenu(anchor) {
@@ -1831,7 +1836,8 @@ const methods = {
     AnchoredMenu.show(anchor, true, rows, null);
   },
   dockPinned() { return this.recentPrefs.getBoolean('dock_pinned', false); },
-  toggleFloatBar() { this.setBarPlace(this.floatBar() ? 'bottom' : 'float'); },
+  /** Floating toolbar on / off; off docks it back at the right edge (the default place). */
+  toggleFloatBar() { this.setBarPlace(this.floatBar() ? 'right' : 'float'); },
   toggleDockPinned() {
     const on = !this.dockPinned(); this.recentPrefs.putBoolean('dock_pinned', on);
     if (this.fullscreen) {
