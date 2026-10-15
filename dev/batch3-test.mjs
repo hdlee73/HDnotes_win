@@ -9,7 +9,7 @@ await pg.addInitScript(()=>{Map.prototype.getOrInsertComputed??=function(k,f){if
 await pg.goto(`http://localhost:${PORT}/index.html`); await pg.waitForTimeout(1500);
 let fails=0; const check=(n,ok,x='')=>{console.log((ok?'PASS ':'FAIL ')+n+(x?'  '+x:''));if(!ok)fails++};
 const bytes=[...fs.readFileSync('dev/samples/sample-ko.pdf')];
-const LIB='C:\\Users\\dev\\Documents\\PDF Note\\sample.pdf';
+const LIB='C:\\Users\\dev\\Documents\\HDnotes\\sample.pdf';
 await pg.evaluate(async([b,p])=>{const {host}=await import('./js/host.js');host._fake.put(p,new Uint8Array(b));await app.openPdf(p);},[bytes,LIB]);
 await pg.waitForTimeout(1500);
 
@@ -84,7 +84,7 @@ check('restore (add) keeps originals and adds a copy', bk.copy, JSON.stringify(b
 // 9: app info + update check
 const ab=await pg.evaluate(async()=>{
   const {host}=await import('./js/host.js'); app._appVersion='3.7.0';
-  host._fake.updateHandler=async()=>({version:'3.8.0',page:'https://example.invalid/r',notes:'새 기능',setupUrl:'https://github.com/hdlee73/Everynote_Win/releases/download/v3.8.0/Everynote-Setup-v3.8.0-x64.exe',exeUrl:null,installed:true,arch:'x64'});
+  host._fake.updateHandler=async()=>({version:'3.8.0',page:'https://example.invalid/r',notes:'새 기능',setupUrl:'https://github.com/hdlee73/HDnotes_win/releases/download/v3.8.0/HDnotes-Setup-v3.8.0-x64.exe',exeUrl:null,installed:true,arch:'x64'});
   app.showAbout(); await new Promise(r=>setTimeout(r,300));
   const out={text:document.querySelector('[data-tag="about_info"]').textContent,auto:document.querySelector('[data-tag="auto_update"]').checked,inst:document.querySelector('[data-tag="auto_update_install"]').checked};
   [...document.querySelectorAll('.ad-btn')].find(x=>x.textContent.trim()==='업데이트 확인').click(); await new Promise(r=>setTimeout(r,500));

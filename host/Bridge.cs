@@ -175,7 +175,9 @@ sealed class Bridge
         var v = System.Reflection.CustomAttributeExtensions.GetCustomAttribute<System.Reflection.AssemblyInformationalVersionAttribute>(typeof(Bridge).Assembly)?.InformationalVersion
                 ?? (ver == null ? "2.0.0" : ver.ToString(3));
         var plus = v.IndexOf('+'); if (plus > 0) v = v.Substring(0, plus);
-        return new { library = AppPaths.Library, data = AppPaths.Data, temp = AppPaths.Temp, documents = AppPaths.Documents, args = list, version = v, platform = "win", installed = IsInstalled(), arch = Arch };
+        var date = typeof(Bridge).Assembly.GetCustomAttributes(typeof(System.Reflection.AssemblyMetadataAttribute), false)
+            .OfType<System.Reflection.AssemblyMetadataAttribute>().FirstOrDefault(a => a.Key == "BuildDate")?.Value ?? "";
+        return new { library = AppPaths.Library, data = AppPaths.Data, temp = AppPaths.Temp, documents = AppPaths.Documents, args = list, version = v, date, platform = "win", installed = IsInstalled(), arch = Arch };
     }
 
     // ------------------------------------------------------------------------------------------------- fs
@@ -330,11 +332,10 @@ sealed class Bridge
     }
 
     // ---- update check (GitHub releases of this project only)
-    const string ReleaseApi = "https://api.github.com/repos/hdlee73/Everynote_Win/releases/latest";
-    // The repository was renamed (PDF-Note-Windows -> Everynote_Win); the API now reports the new name, older builds/releases may still carry the old one.
+    const string ReleaseApi = "https://api.github.com/repos/hdlee73/HDnotes_win/releases/latest";
+    // Only HDnotes releases are accepted. GitHub may report the repository name in another letter case, so the check ignores case.
     static readonly string[] DownloadPrefixes = {
-        "https://github.com/hdlee73/Everynote_Win/releases/download/",
-        "https://github.com/hdlee73/PDF-Note-Windows/releases/download/",
+        "https://github.com/hdlee73/HDnotes_win/releases/download/",
     };
     static readonly System.Net.Http.HttpClient web = new() { Timeout = TimeSpan.FromMinutes(15) };
     static string Arch => RuntimeInformation.ProcessArchitecture == Architecture.Arm64 ? "arm64" : "x64";
@@ -342,7 +343,7 @@ sealed class Bridge
     static async Task<object> UpdateCheck()
     {
         using var req = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Get, ReleaseApi);
-        req.Headers.TryAddWithoutValidation("User-Agent", "Everynote");
+        req.Headers.TryAddWithoutValidation("User-Agent", "HDnotes");
         req.Headers.TryAddWithoutValidation("Accept", "application/vnd.github+json");
         try
         {
@@ -379,7 +380,7 @@ sealed class Bridge
         var tmp = dest + ".part";
         using (var req = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Get, url))
         {
-            req.Headers.TryAddWithoutValidation("User-Agent", "Everynote");
+            req.Headers.TryAddWithoutValidation("User-Agent", "HDnotes");
             using var res = await web.SendAsync(req, System.Net.Http.HttpCompletionOption.ResponseHeadersRead);
             if (!res.IsSuccessStatusCode) throw new IOException("내려받지 못했습니다 (" + (int)res.StatusCode + ")");
             await using var fs = File.Create(tmp); await res.Content.CopyToAsync(fs);
@@ -399,7 +400,7 @@ sealed class Bridge
         string sums;
         using (var req = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Get, sumsUrl))
         {
-            req.Headers.TryAddWithoutValidation("User-Agent", "Everynote");
+            req.Headers.TryAddWithoutValidation("User-Agent", "HDnotes");
             using var res = await web.SendAsync(req);
             if (!res.IsSuccessStatusCode) throw new IOException("검증 정보(SHA256SUMS.txt)를 받지 못해 업데이트를 중단했습니다 (" + (int)res.StatusCode + ")");
             sums = await res.Content.ReadAsStringAsync();

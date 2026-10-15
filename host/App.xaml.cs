@@ -13,7 +13,7 @@ public partial class App : Application
     [System.Runtime.InteropServices.DllImport("shell32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
     static extern int SetCurrentProcessExplicitAppUserModelID(string appId);
     static Mutex mutex;
-    static readonly string PipeName = "PDFNote-open-" + Environment.UserName;
+    static readonly string PipeName = "HDnotes-open-" + Environment.UserName;
 
     static List<string> FileArgs(IEnumerable<string> args)
     {
@@ -30,14 +30,14 @@ public partial class App : Application
     {
         base.OnStartup(e);
         // taskbar identity: matches the AppUserModelID of the installer's shortcuts so pinning/jump lists work
-        try { SetCurrentProcessExplicitAppUserModelID("hdlee73.Everynote"); } catch { }
+        try { SetCurrentProcessExplicitAppUserModelID("hdlee73.HDnotes"); } catch { }
         AppPaths.EnsureDirs();
         DispatcherUnhandledException += (s, a) => { Log.Write("UI exception: " + a.Exception); a.Handled = true; };
         AppDomain.CurrentDomain.UnhandledException += (s, a) => Log.Write("Unhandled: " + a.ExceptionObject);
         TaskScheduler.UnobservedTaskException += (s, a) => { Log.Write("Unobserved task: " + a.Exception); a.SetObserved(); };
 
         var files = FileArgs(e.Args);
-        mutex = new Mutex(true, @"Local\PDFNote-single-instance-v2", out bool first);
+        mutex = new Mutex(true, @"Local\HDnotes-single-instance-v1", out bool first);
         if (!first)
         {
             SendToPrimary(files);
@@ -72,10 +72,10 @@ public partial class App : Application
     {
         Log.Write("WebView2 runtime missing: " + ex.Message);
         var r = MessageBox.Show(
-            "Everynote를 실행하려면 Microsoft Edge WebView2 런타임이 필요합니다.\n\n" +
-            "[예]를 누르면 Microsoft 다운로드 페이지가 열립니다. 설치한 뒤 Everynote를 다시 실행하세요.\n\n" +
-            "Everynote needs the Microsoft Edge WebView2 Evergreen Runtime. Click Yes to open the download page, install it, then start Everynote again.\n\n" + ex.Message,
-            "Everynote", MessageBoxButton.YesNo, MessageBoxImage.Information);
+            "HDnotes를 실행하려면 Microsoft Edge WebView2 런타임이 필요합니다.\n\n" +
+            "[예]를 누르면 Microsoft 다운로드 페이지가 열립니다. 설치한 뒤 HDnotes를 다시 실행하세요.\n\n" +
+            "HDnotes needs the Microsoft Edge WebView2 Evergreen Runtime. Click Yes to open the download page, install it, then start HDnotes again.\n\n" + ex.Message,
+            "HDnotes", MessageBoxButton.YesNo, MessageBoxImage.Information);
         if (r == MessageBoxResult.Yes)
         {
             try { Process.Start(new ProcessStartInfo(RuntimeUrl) { UseShellExecute = true }); } catch { }

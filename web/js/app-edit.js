@@ -22,7 +22,7 @@ E.copySelectedElement = function (cut) {
   const el = this.selectedPageElement();
   if (!el || !this.store) return false;
   const label = KIND_NAMES[el.kind] || '개체';
-  const sys = el.kind === 'text' && String(el.text).trim() !== '' ? String(el.text) : 'Everynote ' + label;
+  const sys = el.kind === 'text' && String(el.text).trim() !== '' ? String(el.text) : 'HDnotes ' + label;
   this.elementClip = { json: JSON.parse(JSON.stringify(el.toJson())), sys, source: this.store, page: el.page, cut: !!cut, pastes: 0 };
   try { if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(sys).catch(() => {}); } catch (e) { /* the app's own copy is enough */ }
   if (cut) this.deleteElement(el);

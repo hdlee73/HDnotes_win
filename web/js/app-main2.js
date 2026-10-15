@@ -19,7 +19,7 @@ import * as Search from './search.js';
 import { ColorPicker } from './ui/colorpicker.js';
 import { printDocument } from './print.js';
 import { showAboutOffline } from './offline.js';
-import { createBackup, restoreBackup, compareVersions, AUTHOR_LINE } from './backup.js';
+import { createBackup, restoreBackup, compareVersions, AUTHOR_LINE, APP_NAME, RELEASE_DATE } from './backup.js';
 import { SyncClient, SyncError, transferDocument, buildRows, relPath } from './sync.js';
 
 // ------------------------------------------------------------------------------------------------------------------ constants
@@ -1415,7 +1415,7 @@ M.convertVideoAsset = async function (name, from) {
 };
 /** Remembers (per video asset, also across restarts) that the file was already converted to H.264/AAC MP4, so it is never converted twice. */
 function videoConverted(name, set) {
-  const key = 'everynote.videoConverted.' + name;
+  const key = 'hdnotes.videoConverted.' + name;
   try { if (set) localStorage.setItem(key, '1'); else return localStorage.getItem(key) === '1'; } catch (e) { /* storage unavailable */ }
   return false;
 }
@@ -2456,7 +2456,7 @@ M.startLibraryBackup = async function (folder) {
     const d = new Date(), z = n => String(n).padStart(2, '0');
     const stamp = `${d.getFullYear()}${z(d.getMonth() + 1)}${z(d.getDate())}-${z(d.getHours())}${z(d.getMinutes())}`;
     const label = scoped ? `폴더 ${baseName(folder)}` : '모든 문서';
-    const out = await host.saveDialog(label + ' 백업', `Everynote-${scoped ? baseName(folder) : '백업'}-${stamp}.zip`.replace(/[\\/:*?"<>|]/g, '_'), [{ name: 'Everynote 백업', exts: ['zip'] }]);
+    const out = await host.saveDialog(label + ' 백업', `HDnotes-${scoped ? baseName(folder) : '백업'}-${stamp}.zip`.replace(/[\\/:*?"<>|]/g, '_'), [{ name: 'HDnotes 백업', exts: ['zip'] }]);
     if (!out) return;
     const progress = ProgressDialog.show(scoped ? '폴더 백업' : '전체 백업', '문서와 필기를 모으는 중… 잠시 기다려 주세요');
     try {
@@ -2467,7 +2467,7 @@ M.startLibraryBackup = async function (folder) {
 };
 M.startLibraryRestore = async function () {
   try {
-    const picked = await host.openDialog('백업 불러오기', [{ name: 'Everynote 백업', exts: ['zip'] }], false);
+    const picked = await host.openDialog('백업 불러오기', [{ name: 'HDnotes 백업', exts: ['zip'] }], false);
     if (!picked || !picked.length) return;
     const zip = picked[0];
     const run = async overwrite => {
@@ -2484,13 +2484,18 @@ M.startLibraryRestore = async function () {
     });
   } catch (e) { toast('복원 실패: ' + errMsg(e)); }
 };
-const RELEASES_URL = 'https://github.com/hdlee73/Everynote_Win/releases';
+const RELEASES_URL = 'https://github.com/hdlee73/HDnotes_win/releases';
 M.pendingUpdateVersion = function () {
   const v = this.recentPrefs.getString('update_version', '');
   return v && compareVersions(v, this.appVersion()) > 0 ? v : null;
 };
 M.showAbout = function () {
-  const info = h('div', { class: 'm2-about', dataset: { tag: 'about_info' } }, h('div', { class: 'm2-about-name' }, 'Everynote'), h('div', null, '버전 ' + this.appVersion()), h('div', { class: 'm2-about-by' }, AUTHOR_LINE));
+  const date = (this.appDate && this.appDate()) || RELEASE_DATE;
+  const info = h('div', { class: 'm2-about', dataset: { tag: 'about_info' } },
+    h('img', { class: 'm2-about-logo', src: 'assets/hdnotes-icon.svg', alt: '' }),
+    h('div', { class: 'm2-about-name' }, APP_NAME),
+    h('div', { dataset: { tag: 'about_version' } }, '버전 ' + (this.appVersion() || '-') + ' · 업데이트 ' + date),
+    h('div', { class: 'm2-about-by', dataset: { tag: 'about_author' } }, AUTHOR_LINE));
   const releaseLink = h('a', { class: 'm2-about-link', href: RELEASES_URL, dataset: { tag: 'about_releases' } }, '업데이트 정보 (GitHub 릴리스 페이지)');
   releaseLink.addEventListener('click', e => { e.preventDefault(); host.shellOpen(RELEASES_URL).catch(() => toast('브라우저를 열 수 없습니다')); });
   const status = h('div', { class: 'm2-about-status', dataset: { tag: 'update_status' } });

@@ -7,25 +7,25 @@ WPF (.NET 8) window hosting WebView2. The whole `web/**` tree is embedded in the
 
 | file | role |
 |---|---|
-| `host/Everynote.csproj` | assembly `Everynote.exe` (product Everynote, v3.0.0), net8.0-windows10.0.19041, WPF, `Microsoft.Web.WebView2` 1.0.2903.40, `System.Security.Cryptography.ProtectedData`, embeds `..\web\**\*` as `web/<relative path>` |
-| `host/App.xaml.cs` | startup, single instance (named mutex + `PDFNote-open-<user>` pipe, CurrentUserOnly), command-line files, WebView2-runtime-missing dialog |
+| `host/HDnotes.csproj` | assembly `HDnotes.exe` (product HDnotes, v1.0.0), net8.0-windows10.0.19041, WPF, `Microsoft.Web.WebView2` 1.0.2903.40, `System.Security.Cryptography.ProtectedData`, embeds `..\web\**\*` as `web/<relative path>` |
+| `host/App.xaml.cs` | startup, single instance (named mutex + `HDnotes-open-<user>` pipe, CurrentUserOnly), command-line files, WebView2-runtime-missing dialog |
 | `host/MainWindow.xaml.cs` | WebView2 setup/policies, fullscreen, window state, event/response posting |
 | `host/WebServer.cs` | `app.pdfnote.local` (embedded resources) and `file.pdfnote.local/f?p=` (disk, Range) via `WebResourceRequested` (all source kinds, so workers work) |
 | `host/Bridge.cs` | every protocol method |
 | `host/Paths.cs` | folders, log, `PathPolicy` allow-list |
 | `host/Office.cs`, `SpreadsheetPrep.cs` | Office/LibreOffice conversion, port of Android `SpreadsheetImport` (xlsx) |
 | `host/Ocr.cs` | `Windows.Media.Ocr` |
-| `installer/Everynote.iss` | Inno Setup script (+ `Korean.isl`, `everynote.ico`, wizard images, icon SVG) |
+| `installer/HDnotes.iss` | Inno Setup script (+ `Korean.isl`, `hdnotes.ico`, wizard images, icon SVG) |
 | `tools/installer-smoke.ps1` | CI test of the installer (silent install / uninstall) |
-| `tools/make_icons.py` | `web/assets/everynote-icon.svg` -> PNGs, `host/Assets/app.ico`, installer images |
+| `tools/make_icons.py` | `web/assets/hdnotes-icon.svg` (master) -> PNGs/favicon, `host/Assets/app.ico`, `installer/hdnotes.ico`, wizard images (one step) |
 | `web/js/office.js` | JS side of conversion (HWP in a Web Worker, Office through the host) |
 | `tools/prepare_hwp_engine.py` | Android's engine build/patch script, output `web/hwp/` |
 | `tools/smoke.ps1`, `tools/smoke-host.js` | CI smoke test (see below) |
 
 ## Host protocol notes (beyond host.js)
 
-* `app.info()` -> `library` = `Documents\PDF Note` (override: env `PDFNOTE_LIBRARY` or `%LOCALAPPDATA%\PDFNote\config.json` `{"library":"D:\\x"}`),
-  `data` = `%LOCALAPPDATA%\PDFNote` (env `PDFNOTE_DATA`), `temp` = `<data>\tmp` (swept at start, >2 days), `documents`, `args` (files from the
+* `app.info()` -> `version`, `date` (build date), `library` = `Documents\HDnotes` (override: env `HDNOTES_LIBRARY` or `PDFNOTE_LIBRARY` or `%LOCALAPPDATA%\HDnotes\config.json` `{"library":"D:\\x"}`),
+  `data` = `%LOCALAPPDATA%\HDnotes` (env `HDNOTES_DATA` or `PDFNOTE_DATA`), `temp` = `<data>\tmp` (swept at start, >2 days), `documents`, `args` (files from the
   command line that were not yet delivered), `version`, `platform:'win'`. Calling `app.info` marks the page ready.
 * Events: `{ev:'open.file', d:{path}}` for files passed by a second instance / shell after the page called `app.info` once (earlier ones are
   returned in `args`). `{ev:'office.progress', d:{id,text}}`.
@@ -49,7 +49,7 @@ WPF (.NET 8) window hosting WebView2. The whole `web/**` tree is embedded in the
   (`ko`, `en-US`) or `auto`/omitted: user-profile languages engine, plus the Korean engine if installed (the result with more characters wins).
   Images larger than `OcrEngine.MaxImageDimension` are downscaled for recognition and the boxes scaled back.
   Without any OCR language the promise rejects with `OCR 언어 팩이 설치되어 있지 않습니다...`.
-* `app.log({msg})` -> `%LOCALAPPDATA%\PDFNote\log.txt` (rotates at 2 MB). Host errors are logged too.
+* `app.log({msg})` -> `%LOCALAPPDATA%\HDnotes\log.txt` (rotates at 2 MB). Host errors are logged too.
 
 ## JS API (`web/js/office.js`)
 
@@ -81,7 +81,7 @@ const { pdf: path } = await convertOffice(path, 'docx', text => setStatus(text),
 * Only the embedded app origin may talk to the host: `WebMessageReceived` is ignored unless `e.Source` starts with `https://app.pdfnote.local/`;
   top-level navigation away from it is cancelled (http/https opened in the system browser); new windows/downloads open externally
   (http/https) or, for `blob:` downloads, show a Save dialog.
-* Read allow-list (fs.url/list/stat/readText/copy source, shell.reveal, office source): library, `%LOCALAPPDATA%\PDFNote`, system temp,
+* Read allow-list (fs.url/list/stat/readText/copy source, shell.reveal, office source): library, `%LOCALAPPDATA%\HDnotes`, system temp,
   `C:\Windows\Fonts`, and files the user picked (`dialog.open`, command line, second instance; persisted in `<data>\allowed.json`, max 500).
   Write allow-list (writeText/Begin, mkdir, move/copy target, delete): library, data, system temp, files chosen in `dialog.save`.
   Library/data roots themselves cannot be deleted. Paths are normalised with `GetFullPath` first (no `..` tricks); symlinks/junctions inside
@@ -96,15 +96,15 @@ const { pdf: path } = await convertOffice(path, 'docx', text => setStatus(text),
 * `hwp-engine` (ubuntu): clone `sanguneo/rhwptopdf@adbc4bf`, rust wasm32 + wasm-pack, `tools/prepare_hwp_engine.py --out web/hwp`
   (same patch + regression test as Android, Noto CJK as test font), artifact `hwp-engine` (umd.js 16 KB, wasm ~6 MB). Engine files are git-ignored.
 * `build` (windows-latest): downloads the artifact into `web/hwp/` (a build without it still works, HWP then reports the missing engine; on a
-  tag it is an error), `dotnet publish host/Everynote.csproj` single-file self-contained ReadyToRun for `win-x64` and `win-arm64`
-  (`out/<arch>/Everynote.exe`), `choco install innosetup`, compiles `installer/Everynote.iss` for both architectures
+  tag it is an error), `dotnet publish host/HDnotes.csproj` single-file self-contained ReadyToRun for `win-x64` and `win-arm64`
+  (`out/<arch>/HDnotes.exe`), `choco install innosetup`, compiles `installer/HDnotes.iss` for both architectures
   (`/DAppVersion /DArch /DSourceExe /DOutputBase /DOutDir`), smoke tests the app, then the installer, then
-  `dist/Everynote-<tag|dev>-win-{x64,arm64}.exe` + `dist/Everynote-Setup-<tag|dev>-{x64,arm64}.exe` as artifact `Everynote-windows`; on `v*` tags `gh release view` -> create or
+  `dist/HDnotes-<tag|dev>-win-{x64,arm64}.exe` + `dist/HDnotes-Setup-<tag|dev>-{x64,arm64}.exe` as artifact `HDnotes-windows`; on `v*` tags `gh release view` -> create or
   `upload --clobber`, notes from `docs/release-notes/<tag>.md` (falls back to `--generate-notes`). `Version` comes from the tag. Branches `main`, `host-dev`, `host-v3` build on push.
-* Installer (`installer/Everynote.iss`): per-user by default (`{autopf}` = `%LOCALAPPDATA%\Programs\Everynote`, `PrivilegesRequiredOverridesAllowed=dialog commandline`), Start menu + optional
-  desktop shortcut with `AppUserModelID=hdlee73.Everynote` (the exe sets the same id at startup so taskbar pinning works), Apps & features entry (AppId `{3D6B1F4E-...}`, key `..._is1`),
-  Korean + English, closes a running instance (Restart Manager + `taskkill`), optional "Open with Everynote" task (ProgId `Everynote.Document`, `OpenWithProgids` of
-  pdf/hwp/hwpx/doc/docx/ppt/pptx/xls/xlsx, Capabilities/RegisteredApplications; UserChoice is never written). Uninstall keeps `%LOCALAPPDATA%\PDFNote` and `Documents\PDF Note`
+* Installer (`installer/HDnotes.iss`): per-user by default (`{autopf}` = `%LOCALAPPDATA%\Programs\HDnotes`, `PrivilegesRequiredOverridesAllowed=dialog commandline`), Start menu + optional
+  desktop shortcut with `AppUserModelID=hdlee73.HDnotes` (the exe sets the same id at startup so taskbar pinning works), Apps & features entry (AppId `{1E7F32BF-...}`, key `..._is1`),
+  Korean + English, closes a running instance (Restart Manager + `taskkill`), optional "Open with HDnotes" task (ProgId `HDnotes.Document`, `OpenWithProgids` of
+  pdf/hwp/hwpx/doc/docx/ppt/pptx/xls/xlsx, Capabilities/RegisteredApplications; UserChoice is never written). Uninstall keeps `%LOCALAPPDATA%\HDnotes` and `Documents\HDnotes`
   unless the user answers the prompts (silent: `/PURGEDATA`, `/PURGELIBRARY`). Silent switches: `/VERYSILENT /CURRENTUSER|/ALLUSERS /TASKS="desktopicon,associate"`.
 * `tools/installer-smoke.ps1` (CI): silent install, checks exe / product name / Start menu + desktop shortcut / uninstall entry / ProgId / `.pdf` default not hijacked, starts the installed app
   (left running; the uninstaller must close it), silent uninstall (files, shortcuts, registry gone, data kept), then reinstall without tasks (no desktop shortcut, no association) and uninstall with `/PURGEDATA`.
@@ -126,5 +126,5 @@ const { pdf: path } = await convertOffice(path, 'docx', text => setStatus(text),
 * Password-protected Office files fail (no prompt) or hit the 10 min timeout; Word/PowerPoint cancellation kills the Office process we started.
 * No drag&drop of files from Explorer to paths (the page receives `File` objects only; read them with `file.arrayBuffer()` + `host.writeBytes`).
 * Chosen-file allow-list entries for files opened from outside the library are remembered, but a file moved/deleted later simply fails to open.
-* `Documents\PDF Note` is the default library (spec suggests `%LOCALAPPDATA%\PDFNote\documents`); change via `config.json` if the lead prefers.
+* `Documents\HDnotes` is the default library (spec suggests `%LOCALAPPDATA%\HDnotes\documents`); change via `config.json` if the lead prefers.
 * HWP: quality depends on fonts available in `C:\Windows\Fonts` (Korean Windows ships Malgun Gothic and Batang; non-Korean installs may lack them).

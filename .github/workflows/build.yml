@@ -112,7 +112,7 @@ jobs:
       - name: Restore
         shell: pwsh
         run: |
-          dotnet restore host/Everynote.csproj -r win-x64 2>&1 | Tee-Object -FilePath restore.log
+          dotnet restore host/HDnotes.csproj -r win-x64 2>&1 | Tee-Object -FilePath restore.log
           if ($LASTEXITCODE -ne 0) {
             (Get-Content restore.log | Where-Object { $_ -match 'error' } | Select-Object -Unique -First 8) | ForEach-Object { Write-Host "::error title=restore::$($_.Trim() -replace '%','%25')" }
             exit 1
@@ -121,22 +121,29 @@ jobs:
       - name: Publish win-x64 (self-contained, single file)
         shell: pwsh
         run: |
-          dotnet publish host/Everynote.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true -p:PublishReadyToRun=true -p:Version=${{ steps.ver.outputs.version }} -o out/x64 2>&1 | Tee-Object -FilePath build-x64.log
+          dotnet publish host/HDnotes.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true -p:PublishReadyToRun=true -p:Version=${{ steps.ver.outputs.version }} -o out/x64 2>&1 | Tee-Object -FilePath build-x64.log
           if ($LASTEXITCODE -ne 0) {
             (Get-Content build-x64.log | Where-Object { $_ -match ': error ' } | ForEach-Object { $_.Trim() -replace '^.*?host[\\/]','' } | Select-Object -Unique -First 10) | ForEach-Object { Write-Host "::error title=build-x64::$($_ -replace '%','%25')" }
             exit 1
           }
-          Write-Host "::notice title=build-x64::exe $([int]((Get-Item out/x64/Everynote.exe).Length/1MB)) MB"
+          Write-Host "::notice title=build-x64::exe $([int]((Get-Item out/x64/HDnotes.exe).Length/1MB)) MB"
           (Get-Content build-x64.log | Where-Object { $_ -match ': warning ' } | ForEach-Object { $_.Trim() -replace '^.*?host[\\/]','' } | Select-Object -Unique -First 5) | ForEach-Object { Write-Host "::warning title=build-warn::$($_ -replace '%','%25')" }
 
       - name: Publish win-arm64 (self-contained, single file)
         shell: pwsh
         run: |
-          dotnet publish host/Everynote.csproj -c Release -r win-arm64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true -p:PublishReadyToRun=true -p:Version=${{ steps.ver.outputs.version }} -o out/arm64 2>&1 | Tee-Object -FilePath build-arm64.log
+          dotnet publish host/HDnotes.csproj -c Release -r win-arm64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true -p:PublishReadyToRun=true -p:Version=${{ steps.ver.outputs.version }} -o out/arm64 2>&1 | Tee-Object -FilePath build-arm64.log
           if ($LASTEXITCODE -ne 0) {
             (Get-Content build-arm64.log | Where-Object { $_ -match ': error ' } | ForEach-Object { $_.Trim() -replace '^.*?host[\\/]','' } | Select-Object -Unique -First 10) | ForEach-Object { Write-Host "::error title=build-arm64::$($_ -replace '%','%25')" }
             exit 1
           }
+
+      - name: Sign HDnotes.exe (only when the code-signing secrets exist)
+        shell: pwsh
+        env:
+          CODESIGN_PFX_BASE64: ${{ secrets.CODESIGN_PFX_BASE64 }}
+          CODESIGN_PASSWORD: ${{ secrets.CODESIGN_PASSWORD }}
+        run: ./tools/sign.ps1 out/x64/HDnotes.exe out/arm64/HDnotes.exe
 
       - name: Prepare LibreOffice + docx (optional)
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.test_libreoffice }}
@@ -150,7 +157,7 @@ jobs:
       - name: Smoke test (launch, open sample PDF, host protocol checks, screenshot)
         shell: pwsh
         run: |
-          ./tools/smoke.ps1 -Exe "$PWD\out\x64\Everynote.exe" -Pdf "$PWD\dev\samples\sample-ko.pdf" -Out smoke -Docx "$env:SMOKE_DOCX" -Hwpx "$PWD\tools\sample.hwpx"
+          ./tools/smoke.ps1 -Exe "$PWD\out\x64\HDnotes.exe" -Pdf "$PWD\dev\samples\sample-ko.pdf" -Out smoke -Docx "$env:SMOKE_DOCX" -Hwpx "$PWD\tools\sample.hwpx"
 
       - uses: actions/upload-artifact@v4
         if: always()
@@ -176,7 +183,7 @@ jobs:
           New-Item -ItemType Directory -Force -Path dist | Out-Null
           foreach ($arch in 'x64', 'arm64') {
             $log = "iscc-$arch.log"
-            & $env:ISCC "/DAppVersion=${{ steps.ver.outputs.version }}" "/DArch=$arch" "/DSourceExe=..\out\$arch\Everynote.exe" "/DOutputBase=Everynote-Setup-$v-$arch" "/DOutDir=..\dist" installer\Everynote.iss 2>&1 | Tee-Object -FilePath $log
+            & $env:ISCC "/DAppVersion=${{ steps.ver.outputs.version }}" "/DArch=$arch" "/DSourceExe=..\out\$arch\HDnotes.exe" "/DOutputBase=HDnotes-Setup-$v-$arch" "/DOutDir=..\dist" installer\HDnotes.iss 2>&1 | Tee-Object -FilePath $log
             if ($LASTEXITCODE -ne 0) {
               (Get-Content $log | Where-Object { $_ -match 'Error|error' } | Select-Object -Unique -First 10) | ForEach-Object { Write-Host "::error title=iscc-$arch::$($_.Trim() -replace '%','%25')" }
               exit 1
@@ -185,11 +192,20 @@ jobs:
           }
           Get-ChildItem dist | Format-Table Name, Length
 
+      - name: Sign the installers (only when the code-signing secrets exist)
+        shell: pwsh
+        env:
+          CODESIGN_PFX_BASE64: ${{ secrets.CODESIGN_PFX_BASE64 }}
+          CODESIGN_PASSWORD: ${{ secrets.CODESIGN_PASSWORD }}
+        run: |
+          $setups = @(Get-ChildItem dist/HDnotes-Setup-*.exe | ForEach-Object { $_.FullName })
+          ./tools/sign.ps1 @setups
+
       - name: Installer smoke test (silent install, shortcuts, Apps & features, uninstall)
         shell: pwsh
         run: |
           $v = $env:RELEASE_TAG
-          ./tools/installer-smoke.ps1 -Setup "$PWD\dist\Everynote-Setup-$v-x64.exe" -Out installer-smoke
+          ./tools/installer-smoke.ps1 -Setup "$PWD\dist\HDnotes-Setup-$v-x64.exe" -Out installer-smoke
 
       - uses: actions/upload-artifact@v4
         if: always()
@@ -203,8 +219,8 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force -Path dist | Out-Null
           $v = $env:RELEASE_TAG
-          Copy-Item out/x64/Everynote.exe "dist/Everynote-$v-win-x64.exe"
-          Copy-Item out/arm64/Everynote.exe "dist/Everynote-$v-win-arm64.exe"
+          Copy-Item out/x64/HDnotes.exe "dist/HDnotes-$v-win-x64.exe"
+          Copy-Item out/arm64/HDnotes.exe "dist/HDnotes-$v-win-arm64.exe"
           # SHA-256 of every release file; the in-app updater checks the downloaded installer against this list
           $lines = Get-ChildItem dist -File | Where-Object { $_.Name -ne 'SHA256SUMS.txt' } | Sort-Object Name | ForEach-Object { "$((Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower())  $($_.Name)" }
           [IO.File]::WriteAllText("$PWD/dist/SHA256SUMS.txt", (($lines -join "`n") + "`n"), (New-Object Text.UTF8Encoding($false)))
@@ -213,7 +229,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: Everynote-windows
+          name: HDnotes-windows
           path: dist/*
 
       - name: Publish GitHub Release
@@ -229,9 +245,9 @@ jobs:
           gh release view $tag *> $null
           if ($LASTEXITCODE -eq 0) {
             gh release upload $tag @files --clobber
-            if (Test-Path $notes) { gh release edit $tag --notes-file $notes --title "Everynote $tag" }
+            if (Test-Path $notes) { gh release edit $tag --notes-file $notes --title "HDnotes $tag" }
           } elseif (Test-Path $notes) {
-            gh release create $tag @files --title "Everynote $tag" --notes-file $notes --target $env:GITHUB_SHA
+            gh release create $tag @files --title "HDnotes $tag" --notes-file $notes --target $env:GITHUB_SHA
           } else {
-            gh release create $tag @files --title "Everynote $tag" --generate-notes --target $env:GITHUB_SHA
+            gh release create $tag @files --title "HDnotes $tag" --generate-notes --target $env:GITHUB_SHA
           }

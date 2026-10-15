@@ -25,7 +25,7 @@ await page.goto(`http://localhost:${port}/`);
 await page.waitForFunction(() => window.app && window.app.library, null, { timeout: 30000 }).catch(() => {});
 await page.waitForTimeout(1500);
 await shot('00-boot');
-check('welcome: product name Everynote (title, header, card)', await page.evaluate(() => document.title === 'Everynote' && app.titleView.textContent === 'Everynote' && document.querySelector('.m-welcome-name').textContent === 'Everynote' && getComputedStyle(document.querySelector('.m-welcome')).display !== 'none' && getComputedStyle(app.zoomPill).display === 'none' && getComputedStyle(app.addPageButton).display === 'none'));
+check('welcome: product name HDnotes (title, header, card)', await page.evaluate(() => document.title === 'HDnotes' && app.titleView.textContent === 'HDnotes' && document.querySelector('.m-welcome-name').textContent === 'HDnotes' && getComputedStyle(document.querySelector('.m-welcome')).display !== 'none' && getComputedStyle(app.zoomPill).display === 'none' && getComputedStyle(app.addPageButton).display === 'none'));
 const b64 = fs.readFileSync(path.join(here, 'samples/sample-ko.pdf')).toString('base64');
 const p = await page.evaluate(async b => { const { host } = await import('/js/host.js'); const bytes = Uint8Array.from(atob(b), c => c.charCodeAt(0)); const path = app.library.root + '\\sample-ko.pdf'; host._fake.put(path, bytes); await app.openPdf(path, false, 0, true); return path; }, b64);
 await page.waitForTimeout(1500);

@@ -1,18 +1,18 @@
-﻿; Everynote installer (Inno Setup 6.3+). Build:
-;   iscc installer\Everynote.iss /DAppVersion=3.0.0 /DArch=x64 /DSourceExe=..\out\x64\Everynote.exe /DOutputBase=Everynote-Setup-v3.0.0-x64 /DOutDir=..\dist
-; Per-user install by default (%LOCALAPPDATA%\Programs\Everynote, no admin); the dialog / /ALLUSERS offers an all-users install.
+﻿; HDnotes installer (Inno Setup 6.3+). Build:
+;   iscc installer\HDnotes.iss /DAppVersion=1.0.0 /DArch=x64 /DSourceExe=..\out\x64\HDnotes.exe /DOutputBase=HDnotes-Setup-v1.0.0-x64 /DOutDir=..\dist
+; Per-user install by default (%LOCALAPPDATA%\Programs\HDnotes, no admin); the dialog / /ALLUSERS offers an all-users install.
 
 #ifndef AppVersion
-  #define AppVersion "3.0.0"
+  #define AppVersion "1.0.0"
 #endif
 #ifndef Arch
   #define Arch "x64"
 #endif
 #ifndef SourceExe
-  #define SourceExe "..\out\" + Arch + "\Everynote.exe"
+  #define SourceExe "..\out\" + Arch + "\HDnotes.exe"
 #endif
 #ifndef OutputBase
-  #define OutputBase "Everynote-Setup-v" + AppVersion + "-" + Arch
+  #define OutputBase "HDnotes-Setup-v" + AppVersion + "-" + Arch
 #endif
 #ifndef OutDir
   #define OutDir "..\dist"
@@ -22,10 +22,10 @@
 #else
   #define ArchAllowed "x64compatible"
 #endif
-#define AppExe "Everynote.exe"
-#define AppId "{{3D6B1F4E-8A27-4C59-B0E3-5F9A2C7D1E84}"
-#define AumId "hdlee73.Everynote"
-#define ProgId "Everynote.Document"
+#define AppExe "HDnotes.exe"
+#define AppId "{{1E7F32BF-7C7D-4008-89D9-B3CAE0B0B183}"
+#define AumId "hdlee73.HDnotes"
+#define ProgId "HDnotes.Document"
 ; Korean messages: prefer the compiler's own file (same version as the compiler), else the copy next to this script.
 #define KoFile CompilerPath + "Languages\Korean.isl"
 #if !FileExists(KoFile)
@@ -34,17 +34,17 @@
 
 [Setup]
 AppId={#AppId}
-AppName=Everynote
+AppName=HDnotes
 AppVersion={#AppVersion}
-AppVerName=Everynote {#AppVersion}
+AppVerName=HDnotes {#AppVersion}
 AppPublisher=hdlee73
-AppPublisherURL=https://github.com/hdlee73/Everynote_Win
-AppSupportURL=https://github.com/hdlee73/Everynote_Win/issues
-AppUpdatesURL=https://github.com/hdlee73/Everynote_Win/releases
+AppPublisherURL=https://github.com/hdlee73/HDnotes_win
+AppSupportURL=https://github.com/hdlee73/HDnotes_win/issues
+AppUpdatesURL=https://github.com/hdlee73/HDnotes_win/releases
 VersionInfoVersion={#AppVersion}
-VersionInfoDescription=Everynote Setup
-VersionInfoProductName=Everynote
-DefaultDirName={autopf}\Everynote
+VersionInfoDescription=HDnotes Setup
+VersionInfoProductName=HDnotes
+DefaultDirName={autopf}\HDnotes
 DisableProgramGroupPage=yes
 DisableDirPage=no
 DirExistsWarning=auto
@@ -54,9 +54,9 @@ ArchitecturesAllowed={#ArchAllowed}
 ArchitecturesInstallIn64BitMode={#ArchAllowed}
 OutputDir={#OutDir}
 OutputBaseFilename={#OutputBase}
-SetupIconFile=everynote.ico
+SetupIconFile=hdnotes.ico
 UninstallDisplayIcon={app}\{#AppExe}
-UninstallDisplayName=Everynote
+UninstallDisplayName=HDnotes
 WizardStyle=modern
 WizardImageFile=wizard-large.bmp
 WizardSmallImageFile=wizard-small.bmp
@@ -76,16 +76,16 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [CustomMessages]
 english.LibTitle=Documents folder
-english.LibDesc=Where should Everynote keep your documents and notes?
+english.LibDesc=Where should HDnotes keep your documents and notes?
 english.LibSub=Documents, notes, recordings and videos are stored in this folder. Existing documents are not moved automatically; you can change this later in the settings file (%1\config.json).
 english.LibPrompt=Documents folder:
-english.TaskAssoc=Add "Open with Everynote" for PDF, HWP and Office documents (does not change your default apps)
+english.TaskAssoc=Add "Open with HDnotes" for PDF, HWP and Office documents (does not change your default apps)
 english.GroupAssoc=File types:
-english.PurgeData=Also delete Everynote settings and cache?%n%n(%1)%n%nYour documents are kept either way.
-english.PurgeLibrary=Also delete your Everynote documents folder and the notes in it?%n%n(%1)%n%nThis cannot be undone.
-english.RunApp=Launch Everynote
+english.PurgeData=Also delete HDnotes settings and cache?%n%n(%1)%n%nYour documents are kept either way.
+english.PurgeLibrary=Also delete your HDnotes documents folder and the notes in it?%n%n(%1)%n%nThis cannot be undone.
+english.RunApp=Launch HDnotes
 english.ModeTitle=Install type
-english.ModeDesc=Everynote data from an earlier installation was found.
+english.ModeDesc=HDnotes data from an earlier installation was found.
 english.ModeSub=Choose how to install.%n%nDocuments folder: %2%nSettings and notes: %1
 english.ModeUpdate=Update (recommended): keep all documents, notes and settings, replace only the program
 english.ModeFresh=Fresh install: move the existing documents, notes and settings aside to a dated backup folder and start empty (nothing is deleted)
@@ -93,7 +93,7 @@ english.ModeWipe=Fresh install and delete: permanently delete the existing docum
 english.WipeConfirm=The existing documents, notes and settings will be permanently deleted. This cannot be undone.%n%nContinue?
 english.MovedInfo=The earlier data was moved here (restore it by renaming the folders back, or copy documents out of them):
 korean.ModeTitle=설치 방식 선택
-korean.ModeDesc=이전에 사용한 Everynote 데이터가 있습니다.
+korean.ModeDesc=이전에 사용한 HDnotes 데이터가 있습니다.
 korean.ModeSub=설치 방식을 선택하세요.%n%n문서 폴더: %2%n설정·노트: %1
 korean.ModeUpdate=업데이트 (권장): 문서·노트·설정을 모두 그대로 두고 프로그램만 교체합니다
 korean.ModeFresh=새로 설치: 기존 문서·노트·설정을 날짜가 붙은 보관 폴더로 옮겨 두고 빈 상태로 시작합니다 (삭제하지 않음)
@@ -104,11 +104,11 @@ korean.LibTitle=문서 저장 폴더
 korean.LibDesc=문서와 노트를 저장할 폴더를 선택하세요.
 korean.LibSub=문서, 노트, 녹음, 동영상이 이 폴더에 저장됩니다. 기존 문서는 자동으로 옮겨지지 않습니다. 나중에 설정 파일(%1\config.json)에서 바꿀 수도 있습니다.
 korean.LibPrompt=문서 저장 폴더:
-korean.TaskAssoc=PDF, HWP, Office 문서에 "Everynote로 열기" 추가 (기본 앱은 바뀌지 않습니다)
+korean.TaskAssoc=PDF, HWP, Office 문서에 "HDnotes로 열기" 추가 (기본 앱은 바뀌지 않습니다)
 korean.GroupAssoc=파일 형식:
-korean.PurgeData=Everynote 설정과 캐시도 함께 삭제할까요?%n%n(%1)%n%n문서는 어느 쪽을 선택해도 그대로 남습니다.
-korean.PurgeLibrary=Everynote 문서 폴더와 그 안의 노트도 함께 삭제할까요?%n%n(%1)%n%n되돌릴 수 없습니다.
-korean.RunApp=Everynote 실행
+korean.PurgeData=HDnotes 설정과 캐시도 함께 삭제할까요?%n%n(%1)%n%n문서는 어느 쪽을 선택해도 그대로 남습니다.
+korean.PurgeLibrary=HDnotes 문서 폴더와 그 안의 노트도 함께 삭제할까요?%n%n(%1)%n%n되돌릴 수 없습니다.
+korean.RunApp=HDnotes 실행
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
@@ -119,48 +119,48 @@ Source: "{#SourceExe}"; DestDir: "{app}"; DestName: "{#AppExe}"; Flags: ignoreve
 
 [Icons]
 ; AppUserModelID = the id the app sets at startup, so pinning the shortcut to the taskbar/Start works
-Name: "{autoprograms}\Everynote"; Filename: "{app}\{#AppExe}"; AppUserModelID: "{#AumId}"
-Name: "{autodesktop}\Everynote"; Filename: "{app}\{#AppExe}"; AppUserModelID: "{#AumId}"; Tasks: desktopicon
+Name: "{autoprograms}\HDnotes"; Filename: "{app}\{#AppExe}"; AppUserModelID: "{#AumId}"
+Name: "{autodesktop}\HDnotes"; Filename: "{app}\{#AppExe}"; AppUserModelID: "{#AumId}"; Tasks: desktopicon
 
 [Registry]
 ; ProgId + "Open with" entries (never touches the UserChoice / default app of any extension)
-Root: HKA; Subkey: "Software\Classes\{#ProgId}"; ValueType: string; ValueName: ""; ValueData: "Everynote"; Flags: uninsdeletekey; Tasks: associate
+Root: HKA; Subkey: "Software\Classes\{#ProgId}"; ValueType: string; ValueName: ""; ValueData: "HDnotes"; Flags: uninsdeletekey; Tasks: associate
 Root: HKA; Subkey: "Software\Classes\{#ProgId}\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\{#AppExe},0"; Tasks: associate
-Root: HKA; Subkey: "Software\Classes\{#ProgId}\shell\open"; ValueType: string; ValueName: "FriendlyAppName"; ValueData: "Everynote"; Tasks: associate
+Root: HKA; Subkey: "Software\Classes\{#ProgId}\shell\open"; ValueType: string; ValueName: "FriendlyAppName"; ValueData: "HDnotes"; Tasks: associate
 Root: HKA; Subkey: "Software\Classes\{#ProgId}\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#AppExe}"" ""%1"""; Tasks: associate
-Root: HKA; Subkey: "Software\Classes\Applications\{#AppExe}"; ValueType: string; ValueName: "FriendlyAppName"; ValueData: "Everynote"; Flags: uninsdeletekey; Tasks: associate
+Root: HKA; Subkey: "Software\Classes\Applications\{#AppExe}"; ValueType: string; ValueName: "FriendlyAppName"; ValueData: "HDnotes"; Flags: uninsdeletekey; Tasks: associate
 Root: HKA; Subkey: "Software\Classes\Applications\{#AppExe}\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#AppExe}"" ""%1"""; Tasks: associate
 Root: HKA; Subkey: "Software\Classes\.pdf\OpenWithProgids"; ValueType: string; ValueName: "{#ProgId}"; ValueData: ""; Flags: uninsdeletevalue; Tasks: associate
-Root: HKA; Subkey: "Software\Everynote\Capabilities\FileAssociations"; ValueType: string; ValueName: ".pdf"; ValueData: "{#ProgId}"; Tasks: associate
+Root: HKA; Subkey: "Software\HDnotes\Capabilities\FileAssociations"; ValueType: string; ValueName: ".pdf"; ValueData: "{#ProgId}"; Tasks: associate
 Root: HKA; Subkey: "Software\Classes\Applications\{#AppExe}\SupportedTypes"; ValueType: string; ValueName: ".pdf"; ValueData: ""; Tasks: associate
 Root: HKA; Subkey: "Software\Classes\.hwp\OpenWithProgids"; ValueType: string; ValueName: "{#ProgId}"; ValueData: ""; Flags: uninsdeletevalue; Tasks: associate
-Root: HKA; Subkey: "Software\Everynote\Capabilities\FileAssociations"; ValueType: string; ValueName: ".hwp"; ValueData: "{#ProgId}"; Tasks: associate
+Root: HKA; Subkey: "Software\HDnotes\Capabilities\FileAssociations"; ValueType: string; ValueName: ".hwp"; ValueData: "{#ProgId}"; Tasks: associate
 Root: HKA; Subkey: "Software\Classes\Applications\{#AppExe}\SupportedTypes"; ValueType: string; ValueName: ".hwp"; ValueData: ""; Tasks: associate
 Root: HKA; Subkey: "Software\Classes\.hwpx\OpenWithProgids"; ValueType: string; ValueName: "{#ProgId}"; ValueData: ""; Flags: uninsdeletevalue; Tasks: associate
-Root: HKA; Subkey: "Software\Everynote\Capabilities\FileAssociations"; ValueType: string; ValueName: ".hwpx"; ValueData: "{#ProgId}"; Tasks: associate
+Root: HKA; Subkey: "Software\HDnotes\Capabilities\FileAssociations"; ValueType: string; ValueName: ".hwpx"; ValueData: "{#ProgId}"; Tasks: associate
 Root: HKA; Subkey: "Software\Classes\Applications\{#AppExe}\SupportedTypes"; ValueType: string; ValueName: ".hwpx"; ValueData: ""; Tasks: associate
 Root: HKA; Subkey: "Software\Classes\.doc\OpenWithProgids"; ValueType: string; ValueName: "{#ProgId}"; ValueData: ""; Flags: uninsdeletevalue; Tasks: associate
-Root: HKA; Subkey: "Software\Everynote\Capabilities\FileAssociations"; ValueType: string; ValueName: ".doc"; ValueData: "{#ProgId}"; Tasks: associate
+Root: HKA; Subkey: "Software\HDnotes\Capabilities\FileAssociations"; ValueType: string; ValueName: ".doc"; ValueData: "{#ProgId}"; Tasks: associate
 Root: HKA; Subkey: "Software\Classes\Applications\{#AppExe}\SupportedTypes"; ValueType: string; ValueName: ".doc"; ValueData: ""; Tasks: associate
 Root: HKA; Subkey: "Software\Classes\.docx\OpenWithProgids"; ValueType: string; ValueName: "{#ProgId}"; ValueData: ""; Flags: uninsdeletevalue; Tasks: associate
-Root: HKA; Subkey: "Software\Everynote\Capabilities\FileAssociations"; ValueType: string; ValueName: ".docx"; ValueData: "{#ProgId}"; Tasks: associate
+Root: HKA; Subkey: "Software\HDnotes\Capabilities\FileAssociations"; ValueType: string; ValueName: ".docx"; ValueData: "{#ProgId}"; Tasks: associate
 Root: HKA; Subkey: "Software\Classes\Applications\{#AppExe}\SupportedTypes"; ValueType: string; ValueName: ".docx"; ValueData: ""; Tasks: associate
 Root: HKA; Subkey: "Software\Classes\.ppt\OpenWithProgids"; ValueType: string; ValueName: "{#ProgId}"; ValueData: ""; Flags: uninsdeletevalue; Tasks: associate
-Root: HKA; Subkey: "Software\Everynote\Capabilities\FileAssociations"; ValueType: string; ValueName: ".ppt"; ValueData: "{#ProgId}"; Tasks: associate
+Root: HKA; Subkey: "Software\HDnotes\Capabilities\FileAssociations"; ValueType: string; ValueName: ".ppt"; ValueData: "{#ProgId}"; Tasks: associate
 Root: HKA; Subkey: "Software\Classes\Applications\{#AppExe}\SupportedTypes"; ValueType: string; ValueName: ".ppt"; ValueData: ""; Tasks: associate
 Root: HKA; Subkey: "Software\Classes\.pptx\OpenWithProgids"; ValueType: string; ValueName: "{#ProgId}"; ValueData: ""; Flags: uninsdeletevalue; Tasks: associate
-Root: HKA; Subkey: "Software\Everynote\Capabilities\FileAssociations"; ValueType: string; ValueName: ".pptx"; ValueData: "{#ProgId}"; Tasks: associate
+Root: HKA; Subkey: "Software\HDnotes\Capabilities\FileAssociations"; ValueType: string; ValueName: ".pptx"; ValueData: "{#ProgId}"; Tasks: associate
 Root: HKA; Subkey: "Software\Classes\Applications\{#AppExe}\SupportedTypes"; ValueType: string; ValueName: ".pptx"; ValueData: ""; Tasks: associate
 Root: HKA; Subkey: "Software\Classes\.xls\OpenWithProgids"; ValueType: string; ValueName: "{#ProgId}"; ValueData: ""; Flags: uninsdeletevalue; Tasks: associate
-Root: HKA; Subkey: "Software\Everynote\Capabilities\FileAssociations"; ValueType: string; ValueName: ".xls"; ValueData: "{#ProgId}"; Tasks: associate
+Root: HKA; Subkey: "Software\HDnotes\Capabilities\FileAssociations"; ValueType: string; ValueName: ".xls"; ValueData: "{#ProgId}"; Tasks: associate
 Root: HKA; Subkey: "Software\Classes\Applications\{#AppExe}\SupportedTypes"; ValueType: string; ValueName: ".xls"; ValueData: ""; Tasks: associate
 Root: HKA; Subkey: "Software\Classes\.xlsx\OpenWithProgids"; ValueType: string; ValueName: "{#ProgId}"; ValueData: ""; Flags: uninsdeletevalue; Tasks: associate
-Root: HKA; Subkey: "Software\Everynote\Capabilities\FileAssociations"; ValueType: string; ValueName: ".xlsx"; ValueData: "{#ProgId}"; Tasks: associate
+Root: HKA; Subkey: "Software\HDnotes\Capabilities\FileAssociations"; ValueType: string; ValueName: ".xlsx"; ValueData: "{#ProgId}"; Tasks: associate
 Root: HKA; Subkey: "Software\Classes\Applications\{#AppExe}\SupportedTypes"; ValueType: string; ValueName: ".xlsx"; ValueData: ""; Tasks: associate
-Root: HKA; Subkey: "Software\Everynote\Capabilities"; ValueType: string; ValueName: "ApplicationName"; ValueData: "Everynote"; Flags: uninsdeletekey; Tasks: associate
-Root: HKA; Subkey: "Software\Everynote\Capabilities"; ValueType: string; ValueName: "ApplicationDescription"; ValueData: "Everynote - PDF notes"; Tasks: associate
-Root: HKA; Subkey: "Software\Everynote"; Flags: uninsdeletekeyifempty; Tasks: associate
-Root: HKA; Subkey: "Software\RegisteredApplications"; ValueType: string; ValueName: "Everynote"; ValueData: "Software\Everynote\Capabilities"; Flags: uninsdeletevalue; Tasks: associate
+Root: HKA; Subkey: "Software\HDnotes\Capabilities"; ValueType: string; ValueName: "ApplicationName"; ValueData: "HDnotes"; Flags: uninsdeletekey; Tasks: associate
+Root: HKA; Subkey: "Software\HDnotes\Capabilities"; ValueType: string; ValueName: "ApplicationDescription"; ValueData: "HDnotes - PDF notes"; Tasks: associate
+Root: HKA; Subkey: "Software\HDnotes"; Flags: uninsdeletekeyifempty; Tasks: associate
+Root: HKA; Subkey: "Software\RegisteredApplications"; ValueType: string; ValueName: "HDnotes"; ValueData: "Software\HDnotes\Capabilities"; Flags: uninsdeletevalue; Tasks: associate
 
 [Run]
 Filename: "{app}\{#AppExe}"; Description: "{cm:RunApp}"; Flags: nowait postinstall skipifsilent
@@ -191,12 +191,12 @@ var
 
 function DataDirPath(): String;
 begin
-  Result := ExpandConstant('{localappdata}\PDFNote');
+  Result := ExpandConstant('{localappdata}\HDnotes');
 end;
 
 function DefaultLibDir(): String;
 begin
-  Result := ExpandConstant('{userdocs}\PDF Note');
+  Result := ExpandConstant('{userdocs}\HDnotes');
 end;
 
 // library folder from an earlier installation's config.json ({"library": "C:\\path"}), else the default
@@ -248,7 +248,7 @@ begin
   ModePage.Add(CustomMessage('ModeWipe'));
   ModePage.SelectedValueIndex := 0;
   // documents folder (separate from the program folder); /LIBRARY="D:\Notes" sets it for silent installs
-  LibPage := CreateInputDirPage(wpSelectDir, CustomMessage('LibTitle'), CustomMessage('LibDesc'), FmtMessage(CustomMessage('LibSub'), [DataDirPath()]), False, 'PDF Note');
+  LibPage := CreateInputDirPage(wpSelectDir, CustomMessage('LibTitle'), CustomMessage('LibDesc'), FmtMessage(CustomMessage('LibSub'), [DataDirPath()]), False, 'HDnotes');
   LibPage.Add(CustomMessage('LibPrompt'));
   if ParamValue('/LIBRARY') <> '' then LibPage.Values[0] := ParamValue('/LIBRARY') else LibPage.Values[0] := LibDirPath();
 end;
@@ -323,7 +323,7 @@ var
   Purge, PurgeLib: Boolean;
 begin
   if CurUninstallStep <> usPostUninstall then Exit;
-  DataDir := ExpandConstant('{localappdata}\PDFNote');
+  DataDir := ExpandConstant('{localappdata}\HDnotes');
   LibDir := LibDirPath();
   // user data is kept unless chosen: dialog when interactive, /PURGEDATA and /PURGELIBRARY when silent
   Purge := HasParam('/PURGEDATA');

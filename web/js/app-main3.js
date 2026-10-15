@@ -667,7 +667,7 @@ const methods = {
   /** Large, left aligned help card: sections by principle and by menu (13 chapters), scrolls inside the card. */
   showHelp() {
     const card = h('div', { class: 'm3-help', dataset: { tag: 'help_card' } });
-    card.append(h('div', { class: 'm3-help-title' }, 'Everynote 사용법'), h('div', { class: 'm3-help-ver' }, '버전 ' + this.appVersion()));
+    card.append(h('div', { class: 'm3-help-title' }, 'HDnotes 사용법'), h('div', { class: 'm3-help-ver' }, '버전 ' + this.appVersion()));
     const body = h('div', { class: 'm3-help-body' });
     for (const sec of HELP) {
       body.append(h('div', { class: 'm3-help-h' }, sec[0]));
@@ -688,6 +688,7 @@ const methods = {
     document.body.append(root); requestAnimationFrame(() => root.classList.add('in'));
   },
   appVersion() { return this._appVersion || ''; },
+  appDate() { return this._appDate || ''; },
   toast(s) { showToast(s); },
 
   // ================================================================== lifecycle glue
@@ -732,7 +733,7 @@ export function initMain3(app) {
   dflt('inlineFresh', false); dflt('recordingStarted', 0); dflt('recordingPage', 0);
   app.lassoShape = prefs.getInt('lasso_shape', 0);
   app._appVersion = ''; app._destroyed = false;
-  host.info().then(i => { app._appVersion = (i && i.version) || ''; setTimeout(() => { try { if (!app._destroyed && app.autoCheckForUpdate) app.autoCheckForUpdate(); } catch { /* ignore */ } }, 5000); setInterval(() => { try { if (!app._destroyed && app.autoCheckForUpdate) app.autoCheckForUpdate(); } catch { /* ignore */ } }, 30 * 60 * 1000); }).catch(() => {});
+  host.info().then(i => { app._appVersion = (i && i.version) || ''; app._appDate = (i && i.date) || ''; setTimeout(() => { try { if (!app._destroyed && app.autoCheckForUpdate) app.autoCheckForUpdate(); } catch { /* ignore */ } }, 5000); setInterval(() => { try { if (!app._destroyed && app.autoCheckForUpdate) app.autoCheckForUpdate(); } catch { /* ignore */ } }, 30 * 60 * 1000); }).catch(() => {});
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') app.onStop(); });
   window.addEventListener('pagehide', () => app.onDestroy());
 }

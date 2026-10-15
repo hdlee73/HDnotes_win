@@ -666,7 +666,7 @@ const methods = {
     const open = h('button', { class: 'm-welcome-btn', type: 'button', 'aria-label': '문서 열기' }, mkIcon('ic_folder_open', 22, 'currentColor'), h('span', null, '문서 열기'));
     open.addEventListener('click', () => this.showAddDocumentMenu());
     this.welcomeCard = h('div', { class: 'm-welcome', dataset: { tag: 'welcome' } },
-      h('div', { class: 'm-welcome-card' }, h('div', { class: 'm-welcome-name' }, 'HDnotes'),
+      h('div', { class: 'm-welcome-card' }, h('img', { class: 'm-welcome-logo', src: 'assets/hdnotes-icon.svg', alt: '' }), h('div', { class: 'm-welcome-name' }, 'HDnotes'),
         h('div', { class: 'm-welcome-sub' }, 'PDF·Office·한글 문서를 열어 필기하고, 새 노트를 만들어 보세요.'), open));
     viewport.append(this.zoomPill, this.addPageButton, this.welcomeCard);
   },
@@ -1221,7 +1221,7 @@ const methods = {
       const iw = Math.max(1, Math.round(bitmap.width * scale)), ih = Math.max(1, Math.round(bitmap.height * scale));
       const aspect = ih / iw, pw = aspect < 1 ? 842 : 595;
       const doc = await PDFDocument.create({ updateMetadata: false });
-      doc.setProducer('Everynote'); doc.setCreator('Everynote');
+      doc.setProducer('HDnotes'); doc.setCreator('HDnotes');
       const slice = aspect <= 2.2 ? ih : Math.max(1, Math.round(iw * 1.4142));
       for (let y = 0; y < ih; y += slice) {
         const sh = Math.min(slice, ih - y), canvas = document.createElement('canvas');
@@ -1336,7 +1336,7 @@ const methods = {
   offerOfficeImport(uri, name) {
     // the "본문만 미리보기" (text-only preview) button does not exist on Windows: no OfficeImporter port
     new AlertDialog.Builder().setTitle(name)
-      .setMessage('원본 서식·표·그림은 설치된 문서 앱에서 확인할 수 있습니다. 해당 앱에서 PDF로 내보낸 뒤 다시 가져오면 Everynote에서 필기와 주석을 사용할 수 있습니다.')
+      .setMessage('원본 서식·표·그림은 설치된 문서 앱에서 확인할 수 있습니다. 해당 앱에서 PDF로 내보낸 뒤 다시 가져오면 HDnotes에서 필기와 주석을 사용할 수 있습니다.')
       .setPositiveButton('원본 보기', () => this.openOfficeOriginal(uri, name))
       .setNegativeButton('PDF 가져오기', () => this.chooseConvertedPdf()).show();
   },
@@ -1908,8 +1908,8 @@ const methods = {
     this.header.style.display = disp; this.tabStrip.style.display = disp; this.bottomBar.style.display = disp; this.railMargin();
     if (this.fullscreen) {
       this.showFullscreenDock(true);
-      let hints = 0; try { hints = +localStorage.getItem('everynote.fullscreenHint') || 0; } catch { /* ignore */ }
-      if (hints < 3) { try { localStorage.setItem('everynote.fullscreenHint', String(hints + 1)); } catch { /* ignore */ } toast('메뉴는 화면 아래에서 위로 쓸어올리거나 아래쪽 ⌃ 버튼을 누르면 다시 나옵니다'); }
+      let hints = 0; try { hints = +localStorage.getItem('hdnotes.fullscreenHint') || 0; } catch { /* ignore */ }
+      if (hints < 3) { try { localStorage.setItem('hdnotes.fullscreenHint', String(hints + 1)); } catch { /* ignore */ } toast('메뉴는 화면 아래에서 위로 쓸어올리거나 아래쪽 ⌃ 버튼을 누르면 다시 나옵니다'); }
     } else this.hideFullscreenDock(false);
     host.call('window.fullscreen', { on: this.fullscreen }).catch(() => {});
   },

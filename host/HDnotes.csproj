@@ -7,14 +7,14 @@
     <UseWPF>true</UseWPF>
     <Nullable>disable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <AssemblyName>Everynote</AssemblyName>
+    <AssemblyName>HDnotes</AssemblyName>
     <RootNamespace>PdfNote</RootNamespace>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <Version>3.0.0</Version>
-    <Product>Everynote</Product>
-    <AssemblyTitle>Everynote</AssemblyTitle>
-    <Description>Everynote - PDF/document notes with pen and typing</Description>
+    <Version>1.0.0</Version>
+    <Product>HDnotes</Product>
+    <AssemblyTitle>HDnotes</AssemblyTitle>
+    <Description>HDnotes - PDF/document notes with pen and typing</Description>
     <Copyright>Copyright (c) hdlee73</Copyright>
     <Company>hdlee73</Company>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
@@ -28,6 +28,11 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.2903.40" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Shown as the update date in 앱 정보 (Info().date). -->
+    <AssemblyMetadata Include="BuildDate" Value="$([System.DateTime]::UtcNow.ToString('yyyy-MM-dd'))" />
   </ItemGroup>
 
   <ItemGroup>

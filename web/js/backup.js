@@ -18,6 +18,7 @@ export async function builtinTemplate(name) {
 const extOf = p => { const n = baseName(p), i = n.lastIndexOf('.'); return i > 0 ? n.slice(i + 1).replace(/[^A-Za-z0-9]/g, '') || 'pdf' : 'pdf'; };
 import { ASSET_NAME, relPath, referencedAssets } from './sync.js';
 
+// The ZIP manifest keeps its original name and format string, so HDnotes and Everynote backups (Windows and Android) restore on each other.
 export const BACKUP_FORMAT = 'Everynote backup v1';
 export const BACKUP_MANIFEST = 'everynote-backup.json';
 
@@ -73,9 +74,9 @@ export async function createBackup(env, outPath, opts = {}) {
 /** overwrite=false: a document whose path exists is added as a copy ("name (1).pdf"); true: replaced unless it is open. */
 export async function restoreBackup(env, zipPath, overwrite) {
   const lib = env.library, names = new Set((await host.zipEntries(zipPath)).map(e => e.name));
-  if (!names.has(BACKUP_MANIFEST)) throw new Error('Everynote 백업 파일이 아닙니다');
-  let m; try { m = JSON.parse(await host.zipReadText(zipPath, BACKUP_MANIFEST)); } catch { throw new Error('Everynote 백업 파일이 아닙니다'); }
-  if (!m || m.format !== BACKUP_FORMAT) throw new Error('Everynote 백업 파일이 아닙니다');
+  if (!names.has(BACKUP_MANIFEST)) throw new Error('HDnotes 백업 파일이 아닙니다');
+  let m; try { m = JSON.parse(await host.zipReadText(zipPath, BACKUP_MANIFEST)); } catch { throw new Error('HDnotes 백업 파일이 아닙니다'); }
+  if (!m || m.format !== BACKUP_FORMAT) throw new Error('HDnotes 백업 파일이 아닙니다');
   const r = { documents: 0, notes: 0, assets: 0, folders: 0, skipped: 0, failed: 0 };
   for (const o of m.folders || []) {
     if (!o || !safeRel(o.path, false)) continue;
@@ -130,4 +131,7 @@ export function compareVersions(a, b) {
   for (let i = 0; i < Math.max(x.length, y.length); i++) { const d = (x[i] || 0) - (y[i] || 0); if (d) return d; }
   return 0;
 }
-export const AUTHOR_LINE = '만든이 : 이현덕(with Claude), hdlee73@gmail.com';
+export const APP_NAME = 'HDnotes';
+export const AUTHOR_LINE = '만든이 이현덕 (hdlee73@gmail.com)';
+/** Date of this release, shown in 앱 정보 when the host does not report its build date. Update together with VERSION. */
+export const RELEASE_DATE = '2026-10-15';

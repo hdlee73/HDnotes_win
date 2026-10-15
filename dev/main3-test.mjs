@@ -161,7 +161,7 @@ await ev(() => app.showHelp()); await shot('21-help');
 const help = await ev(() => { const c = document.querySelector('.m3-help'), r = c.getBoundingClientRect(); return { heads: [...c.querySelectorAll('.m3-help-h')].map(x => x.textContent), items: c.querySelectorAll('.m3-help-item').length, align: getComputedStyle(c).textAlign, titleAlign: getComputedStyle(c.querySelector('.m3-help-title')).textAlign, w: r.width, h: r.height, win: innerHeight }; });
 check('help: 14 chapters, 55 items, left aligned, tall card', help.heads.length === 14 && help.items === 55 && help.align === 'left' && help.h > help.win * .85 && help.heads[0] === '1. 기본 원리' && help.heads[13] === '14. 인터넷 연결이 없을 때', JSON.stringify({ ...help, heads: help.heads.length }));
 const helpText = await ev(() => document.querySelector('.m3-help').textContent);
-check('help: Everynote name, offline section lists internet-needed + offline features', await ev(() => document.querySelector('.m3-help-title').textContent) === 'Everynote 사용법' && !/PDF Note/.test(helpText)
+check('help: HDnotes name, offline section lists internet-needed + offline features', await ev(() => document.querySelector('.m3-help-title').textContent) === 'HDnotes 사용법' && !/PDF Note/.test(helpText)
   && ['구글 번역', '사전 웹 검색', 'YouTube', 'WebView2', 'LibreOffice', 'Windows OCR 언어팩', '인쇄', '문서함'].every(k => helpText.includes(k)));
 check('help ch.6: 색·모양·굵기 wording of Android v1.30.0 (old wording gone)', helpText.includes('색·모양·굵기') && helpText.includes('색, 굵기 막대, 모양(직선 / 자유형)을 고를 수 있습니다') && helpText.includes('자유형은 손가락이나 펜으로 원하는 모양대로 그립니다') && !helpText.includes('색을 고를 수 있고, 무지개 칩'));
 await page.evaluate(() => document.querySelector('.m3-help-body').scrollTo(0, 99999)); await shot('21b-help-end');

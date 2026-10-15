@@ -4,11 +4,11 @@ using System.Text.Json;
 
 namespace PdfNote;
 
-/// <summary>Well-known folders. Everything the app writes lives under %LOCALAPPDATA%\PDFNote (or the library folder).</summary>
+/// <summary>Well-known folders. Everything the app writes lives under %LOCALAPPDATA%\HDnotes (or the library folder).</summary>
 static class AppPaths
 {
-    public static readonly string Data = Env("PDFNOTE_DATA") ??
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "PDFNote");
+    public static readonly string Data = Env("HDNOTES_DATA") ?? Env("PDFNOTE_DATA") ??
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "HDnotes");
     public static readonly string WebView2Data = Path.Combine(Data, "WebView2");
     public static readonly string Temp = Path.Combine(Data, "tmp");
     public static readonly string LogFile = Path.Combine(Data, "log.txt");
@@ -21,8 +21,8 @@ static class AppPaths
 
     static string ResolveLibrary()
     {
-        // order: env PDFNOTE_LIBRARY, <data>\config.json {"library": "..."}, Documents\PDF Note
-        var v = Env("PDFNOTE_LIBRARY");
+        // order: env HDNOTES_LIBRARY / PDFNOTE_LIBRARY, <data>\config.json {"library": "..."}, Documents\HDnotes
+        var v = Env("HDNOTES_LIBRARY") ?? Env("PDFNOTE_LIBRARY");
         if (v == null)
         {
             try
@@ -36,7 +36,7 @@ static class AppPaths
             }
             catch { }
         }
-        if (string.IsNullOrWhiteSpace(v)) v = Path.Combine(Documents, "PDF Note");
+        if (string.IsNullOrWhiteSpace(v)) v = Path.Combine(Documents, "HDnotes");
         return Path.GetFullPath(v).TrimEnd('\\');
     }
 
@@ -82,7 +82,7 @@ static class Log
 
 /// <summary>
 /// Security model for filesystem access from the page. The page can only be our embedded app (navigation is locked), but
-/// we still scope everything: reads are limited to the library, %LOCALAPPDATA%\PDFNote, temp dirs, C:\Windows\Fonts and files the
+/// we still scope everything: reads are limited to the library, %LOCALAPPDATA%\HDnotes, temp dirs, C:\Windows\Fonts and files the
 /// user picked through the open dialog / command line / second instance. Writes are limited to library, data, temp and files
 /// the user chose in the save dialog.
 /// </summary>

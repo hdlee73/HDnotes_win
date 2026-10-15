@@ -9,7 +9,7 @@ await pg.addInitScript(()=>{Map.prototype.getOrInsertComputed??=function(k,f){if
 await pg.goto(`http://localhost:${PORT}/index.html`); await pg.waitForTimeout(1500);
 let fails=0; const check=(n,ok,x='')=>{console.log((ok?'PASS ':'FAIL ')+n+(x?'  '+x:''));if(!ok)fails++};
 const bytes=[...fs.readFileSync('dev/samples/sample-ko.pdf')];
-const LIB='C:\\Users\\dev\\Documents\\PDF Note\\sample.pdf';
+const LIB='C:\\Users\\dev\\Documents\\HDnotes\\sample.pdf';
 await pg.evaluate(async([b,p])=>{const {host}=await import('./js/host.js');host._fake.put(p,new Uint8Array(b));await app.openPdf(p);},[bytes,LIB]);
 await pg.waitForTimeout(1500);
 
@@ -40,7 +40,7 @@ check('narrow panel search input stays wide', sw>=130, String(sw));
 await pg.evaluate(()=>{app.sidePanel.style.width='';app.closeSidePanel()});
 
 // 6: page add keeps size/orientation; other formats offered
-const mk=await pg.evaluate(async()=>{const {PDFDocument}=await import('../vendor/pdflib/pdf-lib.esm.min.js');const d=await PDFDocument.create();d.addPage([800,500]);d.addPage([800,500]);const {host}=await import('./js/host.js');const path='C:\\Users\\dev\\Documents\\PDF Note\\wide.pdf';host._fake.put(path,await d.save());await app.openPdf(path);return path});
+const mk=await pg.evaluate(async()=>{const {PDFDocument}=await import('../vendor/pdflib/pdf-lib.esm.min.js');const d=await PDFDocument.create();d.addPage([800,500]);d.addPage([800,500]);const {host}=await import('./js/host.js');const path='C:\\Users\\dev\\Documents\\HDnotes\\wide.pdf';host._fake.put(path,await d.save());await app.openPdf(path);return path});
 await pg.waitForTimeout(1500);
 const sizeOf=async i=>pg.evaluate(async([p,i])=>{const {PDFDocument}=await import('../vendor/pdflib/pdf-lib.esm.min.js');const {host}=await import('./js/host.js');const d=await PDFDocument.load(await host.readBytes(p));const s=d.getPage(i).getSize();return [Math.round(s.width),Math.round(s.height),d.getPageCount()]},[mk,i]);
 await pg.evaluate(()=>app.choosePageToInsert(0)); await pg.waitForTimeout(1500);

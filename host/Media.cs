@@ -10,7 +10,7 @@ namespace PdfNote;
 static class MediaTranscode
 {
     /// <summary>Extension that matches the file's real container, so Media Foundation picks the right source even when
-    /// an old asset was saved as .mp4 (Everynote stores every video asset under a .mp4 name).</summary>
+    /// an old asset was saved as .mp4 (HDnotes stores every video asset under a .mp4 name).</summary>
     static string Sniff(string path)
     {
         var b = new byte[16];
@@ -33,7 +33,7 @@ static class MediaTranscode
         var ext = Sniff(path);
         if (!string.Equals(ext, Path.GetExtension(path), StringComparison.OrdinalIgnoreCase))
         {
-            var copy = Path.Combine(AppPaths.SystemTemp, "everynote-video-" + Path.GetFileNameWithoutExtension(path) + ext);
+            var copy = Path.Combine(AppPaths.SystemTemp, "hdnotes-video-" + Path.GetFileNameWithoutExtension(path) + ext);
             if (!File.Exists(copy) || new FileInfo(copy).Length != new FileInfo(path).Length) File.Copy(path, copy, true);
             path = copy;
         }
@@ -50,7 +50,7 @@ static class MediaTranscode
             var src = from;
             if (!string.Equals(ext, Path.GetExtension(from), StringComparison.OrdinalIgnoreCase))
             {
-                temp = Path.Combine(AppPaths.SystemTemp, "everynote-video-" + Guid.NewGuid().ToString("N") + ext);
+                temp = Path.Combine(AppPaths.SystemTemp, "hdnotes-video-" + Guid.NewGuid().ToString("N") + ext);
                 File.Copy(from, temp, true); src = temp;
             }
             var input = await StorageFile.GetFileFromPathAsync(src);

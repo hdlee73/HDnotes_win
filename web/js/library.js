@@ -290,7 +290,7 @@ export const NotebookFiles = {
     const temp = tmpName(folder, '.note-');
     try {
       const doc = await PDFDocument.create({ updateMetadata: false });
-      doc.setProducer('Everynote'); doc.setCreator('Everynote');
+      doc.setProducer('HDnotes'); doc.setCreator('HDnotes');
       const info = infoDict(doc);
       info.set(PDFName.of('PDFNoteNotebook'), PDFString.of('true'));
       info.set(PDFName.of('PDFNotePaper'), PDFString.of(paper.spec().replace(/[\\()]/g, m => '\\' + m)));

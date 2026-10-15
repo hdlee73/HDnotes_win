@@ -55,8 +55,8 @@ function nativeCall(m, a) {
 // ---------------------------------------------------------------- dev fallback (browser only)
 const fake = {
   files: new Map(), // 'C:\\x\\y' -> {dir:boolean, bytes:Uint8Array|null, mtime}
-  lib: 'C:\\Users\\dev\\Documents\\PDF Note',
-  data: 'C:\\Users\\dev\\AppData\\Local\\PDFNote',
+  lib: 'C:\\Users\\dev\\Documents\\HDnotes',
+  data: 'C:\\Users\\dev\\AppData\\Local\\HDnotes',
   inited: false,
   init() {
     if (this.inited) return; this.inited = true;

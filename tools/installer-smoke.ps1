@@ -17,11 +17,11 @@ function Check([string]$name, [bool]$cond, [string]$extra = '') {
 
 $appId = '{3D6B1F4E-8A27-4C59-B0E3-5F9A2C7D1E84}_is1'
 $uninstKey = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\$appId"
-$installDir = Join-Path $env:LOCALAPPDATA 'Programs\Everynote'
-$exe = Join-Path $installDir 'Everynote.exe'
-$startLnk = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\Everynote.lnk'
-$deskLnk = Join-Path ([Environment]::GetFolderPath('Desktop')) 'Everynote.lnk'
-$dataDir = Join-Path $env:LOCALAPPDATA 'PDFNote'
+$installDir = Join-Path $env:LOCALAPPDATA 'Programs\HDnotes'
+$exe = Join-Path $installDir 'HDnotes.exe'
+$startLnk = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\HDnotes.lnk'
+$deskLnk = Join-Path ([Environment]::GetFolderPath('Desktop')) 'HDnotes.lnk'
+$dataDir = Join-Path $env:LOCALAPPDATA 'HDnotes'
 $marker = Join-Path $dataDir 'installer-smoke-marker.txt'
 
 function Wait-Until([scriptblock]$cond, [int]$sec = 60) { for ($i = 0; $i -lt $sec * 2; $i++) { if (& $cond) { return $true }; Start-Sleep -Milliseconds 500 }; return $false }
@@ -51,8 +51,8 @@ New-Item -ItemType Directory -Force -Path $dataDir | Out-Null
 Set-Content -Path $marker -Value 'keep me'
 $code = Install (Join-Path $Out 'install1.log')
 Check 'install exit code 0' ($code -eq 0) "exit=$code"
-Check 'installed Everynote.exe' (Test-Path $exe) $installDir
-if (Test-Path $exe) { $vi = (Get-Item $exe).VersionInfo; Check 'exe product name' ($vi.ProductName -eq 'Everynote') "$($vi.ProductName) / $($vi.FileDescription)"; Write-Host "::notice title=installer-info::exe version $($vi.ProductVersion) size $([int]((Get-Item $exe).Length/1MB)) MB" }
+Check 'installed HDnotes.exe' (Test-Path $exe) $installDir
+if (Test-Path $exe) { $vi = (Get-Item $exe).VersionInfo; Check 'exe product name' ($vi.ProductName -eq 'HDnotes') "$($vi.ProductName) / $($vi.FileDescription)"; Write-Host "::notice title=installer-info::exe version $($vi.ProductVersion) size $([int]((Get-Item $exe).Length/1MB)) MB" }
 Check 'Start menu shortcut' (Test-Path $startLnk) $startLnk
 Check 'desktop shortcut' (Test-Path $deskLnk) $deskLnk
 if (Test-Path $startLnk) {
@@ -60,24 +60,24 @@ if (Test-Path $startLnk) {
   Check 'shortcut target' ($sh.TargetPath -eq $exe) $sh.TargetPath
 }
 $u = Get-ItemProperty $uninstKey -ErrorAction SilentlyContinue
-Check 'Apps & features entry' ($null -ne $u -and $u.DisplayName -like 'Everynote*') ($u | Out-String)
+Check 'Apps & features entry' ($null -ne $u -and $u.DisplayName -like 'HDnotes*') ($u | Out-String)
 if ($u) {
   Check 'uninstall string + icon + publisher' ($u.UninstallString -and $u.DisplayIcon -and $u.Publisher -eq 'hdlee73') ($u | Out-String)
   Write-Host "::notice title=installer-info::DisplayName=$($u.DisplayName) DisplayVersion=$($u.DisplayVersion)"
 }
-Check 'ProgId registered' (Test-Path 'HKCU:\Software\Classes\Everynote.Document\shell\open\command')
+Check 'ProgId registered' (Test-Path 'HKCU:\Software\Classes\HDnotes.Document\shell\open\command')
 $ow = Get-Item 'HKCU:\Software\Classes\.pdf\OpenWithProgids' -ErrorAction SilentlyContinue
-Check 'Open-with entry for .pdf' ($null -ne $ow -and ($ow.GetValueNames() -contains 'Everynote.Document'))
+Check 'Open-with entry for .pdf' ($null -ne $ow -and ($ow.GetValueNames() -contains 'HDnotes.Document'))
 $uc = (Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\FileExts\.pdf\UserChoice' -ErrorAction SilentlyContinue).ProgId
-Check 'default app for .pdf not hijacked' ($uc -ne 'Everynote.Document') $uc
+Check 'default app for .pdf not hijacked' ($uc -ne 'HDnotes.Document') $uc
 
 if (Test-Path $exe) {
-  $env:PDFNOTE_DATA = Join-Path ([IO.Path]::GetTempPath()) 'everynote-installed-data'
+  $env:PDFNOTE_DATA = Join-Path ([IO.Path]::GetTempPath()) 'hdnotes-installed-data'
   $p = Start-Process -FilePath $exe -PassThru
   Start-Sleep -Seconds 12
   $p.Refresh()
   Check 'installed app keeps running' (-not $p.HasExited) "exit=$($p.ExitCode)"
-  if (-not $p.HasExited) { Write-Host "::notice title=installer-info::window title '$($p.MainWindowTitle)'"; Check 'window title Everynote' ($p.MainWindowTitle -like '*Everynote*' -or $p.MainWindowTitle -ne '') $p.MainWindowTitle }
+  if (-not $p.HasExited) { Write-Host "::notice title=installer-info::window title '$($p.MainWindowTitle)'"; Check 'window title HDnotes' ($p.MainWindowTitle -like '*HDnotes*' -or $p.MainWindowTitle -ne '') $p.MainWindowTitle }
   Remove-Item Env:PDFNOTE_DATA -ErrorAction SilentlyContinue
   # leave it running on purpose: the uninstaller must close the running instance
 }
@@ -87,15 +87,15 @@ Check 'app files removed' (-not (Test-Path $exe)) $installDir
 Check 'Start menu shortcut removed' (-not (Test-Path $startLnk))
 Check 'desktop shortcut removed' (-not (Test-Path $deskLnk))
 Check 'Apps & features entry removed' (-not (Test-Path $uninstKey))
-Check 'ProgId removed' (-not (Test-Path 'HKCU:\Software\Classes\Everynote.Document'))
+Check 'ProgId removed' (-not (Test-Path 'HKCU:\Software\Classes\HDnotes.Document'))
 Check 'user data kept by default' (Test-Path $marker) $marker
-Check 'no Everynote process left' (-not (Get-Process -Name Everynote -ErrorAction SilentlyContinue))
+Check 'no HDnotes process left' (-not (Get-Process -Name HDnotes -ErrorAction SilentlyContinue))
 
 # ------------------------------------------------------------------ round 2: reinstall without tasks, uninstall with /PURGEDATA
 $p2 = Start-Process -FilePath $Setup -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/CURRENTUSER', '/TASKS=""', "/LOG=`"$(Join-Path $Out 'install2.log')`"") -PassThru -Wait
 Check 'reinstall (no optional tasks)' ($p2.ExitCode -eq 0 -and (Test-Path $exe)) "exit=$($p2.ExitCode)"
 Check 'no desktop shortcut without the task' (-not (Test-Path $deskLnk))
-Check 'no file association without the task' (-not (Test-Path 'HKCU:\Software\Classes\Everynote.Document'))
+Check 'no file association without the task' (-not (Test-Path 'HKCU:\Software\Classes\HDnotes.Document'))
 $code = Uninstall (Join-Path $Out 'uninstall2.log') @('/PURGEDATA')
 Check 'uninstall /PURGEDATA exit code 0' ($code -eq 0) "exit=$code"
 Check 'user data deleted with /PURGEDATA' (-not (Test-Path $dataDir)) $dataDir
