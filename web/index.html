@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Everynote</title>
+<meta name="application-name" content="Everynote">
+<meta name="description" content="Everynote - PDF notes with pen and typing">
+<meta name="theme-color" content="#0A6CFF">
+<link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+<link rel="apple-touch-icon" href="assets/everynote-icon-256.png">
+<link rel="stylesheet" href="css/app.css">
+<!-- module stylesheets (added by module owners; keep one line each) -->
+<link rel="stylesheet" href="css/pageview.css">
+<link rel="stylesheet" href="css/main.css">
+<link rel="stylesheet" href="css/main1.css">
+<link rel="stylesheet" href="css/main2.css">
+<link rel="stylesheet" href="css/main3.css">
+<link rel="stylesheet" href="css/library.css">
+<link rel="stylesheet" href="css/colorpicker.css">
+<link rel="stylesheet" href="css/search.css">
+</head>
+<body>
+<div id="app"></div>
+<script type="module">
+import { host } from './js/host.js';
+const L = m => { try { host.log(String(m).slice(0, 800)); } catch (e) {} };
+window.addEventListener('error', e => L('js error: ' + e.message + ' @' + (e.filename || '') + ':' + e.lineno));
+window.addEventListener('unhandledrejection', e => L('unhandled: ' + ((e.reason && (e.reason.stack || e.reason.message)) || e.reason)));
+const ce = console.error.bind(console); console.error = (...a) => { L('console.error: ' + a.join(' ')); ce(...a); };
+import { MainActivity } from './js/app.js';
+window.app = new MainActivity();
+window.app.onCreate().catch(e => L('onCreate failed: ' + (e && e.stack || e)));
+</script>
+</body>
+</html>

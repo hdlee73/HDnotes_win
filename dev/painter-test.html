@@ -1,0 +1,158 @@
+<!doctype html><meta charset="utf-8"><title>painter test</title>
+<style>body{margin:0;background:#789;font:12px sans-serif;color:#fff}.row{display:flex;gap:12px;padding:10px;align-items:flex-start}canvas{background:#fff}</style>
+<body><div class="row" id="out"></div>
+<script type="module">
+import { AnnotationStore, Mark, InkStroke, InkPoint, TranslationNote, PageElement } from '../web/js/store.js';
+import { AnnotationPainter } from '../web/js/painter.js';
+import { Shapes, Table } from '../web/js/shapes.js';
+import { RectF } from '../web/js/util.js';
+
+const W = 640, H = 905;                                   // A4-ish page in CSS px
+function paper(dark) {
+  const c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d');
+  g.fillStyle = dark ? '#000' : '#fff'; g.fillRect(0, 0, W, H);
+  g.fillStyle = dark ? '#ddd' : '#222'; g.font = '15px "Noto Sans KR",sans-serif';
+  for (let y = 40; y < H - 20; y += 22) g.fillText('The quick brown fox jumps over the lazy dog. 가나다라마바사 아자차카타파하 ' + (y / 22 | 0), 30, y);
+  return c;
+}
+async function pngAsset(color, w, h) {            // an image asset stored through the (fake) host
+  const c = document.createElement('canvas'); c.width = w; c.height = h; const g = c.getContext('2d');
+  const gr = g.createLinearGradient(0, 0, w, h); gr.addColorStop(0, color); gr.addColorStop(1, '#fff'); g.fillStyle = gr; g.fillRect(0, 0, w, h);
+  g.strokeStyle = '#000'; g.lineWidth = 6; g.strokeRect(3, 3, w - 6, h - 6); g.fillStyle = '#000'; g.font = 'bold 40px sans-serif'; g.fillText(w + 'x' + h, 14, h / 2);
+  const name = AnnotationStore.newAssetName('png');
+  await AnnotationStore.saveAsset(name, await new Promise(r => c.toBlob(r, 'image/png')));
+  return name;
+}
+const E = (o) => Object.assign(new PageElement(), o);
+const store = new AnnotationStore();
+const img = await pngAsset('#e66', 300, 150), thumb = await pngAsset('#38c', 320, 180);
+// marks: highlight, highlight + note, note-only, minimized note, hidden note
+const hl = (l, t, r, b, color, note = '', extra = {}) => { const m = new Mark(); Object.assign(m, { page: 0, left: l, top: t, right: r, bottom: b, color, note }, extra); store.marks.push(m); };
+hl(.05, .03, .55, .05, 0x66FFEB3B | 0); hl(.05, .07, .4, .09, 0x6600C853 | 0, '하이라이트 + 메모\n두 번째 줄 wrapped note text that is long enough');
+hl(.05, .11, .3, .13, 0x66FF5252 | 0, '접힘', { minimized: true }); hl(.05, .15, .06, .16, 0, '메모만 있는 상자', { noteOnly: true });
+hl(.05, .19, .4, .21, 0x662979FF | 0, '숨김', { visible: false });
+// translation
+const tr = new TranslationNote(); Object.assign(tr, { page: 0, left: .05, top: .24, right: .45, bottom: .26, source: 'Hello', translated: '안녕하세요 번역 결과가 여기에 표시됩니다 long long text' }); store.translations.push(tr);
+const tr2 = new TranslationNote(); Object.assign(tr2, { page: 0, left: .05, top: .30, right: .2, bottom: .32, source: 'x', translated: 'x', minimized: true }); store.translations.push(tr2);
+// strokes with pressure
+const st = new InkStroke(); st.page = 0; st.color = 0xFF1565C0 | 0; st.width = .004;
+for (let i = 0; i <= 60; i++) { const t = i / 60; st.points.push(new InkPoint(.55 + .35 * t, .05 + .04 * Math.sin(t * 9), .1 + .9 * Math.sin(t * Math.PI))); }
+store.strokes.push(st);
+const st2 = new InkStroke(); st2.page = 0; st2.color = 0x80D81B60 | 0; st2.width = .008; st2.points.push(new InkPoint(.6, .12, .5), new InkPoint(.9, .14, .5), new InkPoint(.7, .17, 1)); store.strokes.push(st2);
+const st3 = new InkStroke(); st3.page = 0; st3.color = 0xFF1C1C1E | 0; st3.width = .004; st3.points.push(new InkPoint(.7, .2, .65)); store.strokes.push(st3);
+// elements
+const add = (o) => store.elements.push(E(Object.assign({ page: 0 }, o)));
+add({ kind: 'text', text: '일반 텍스트 상자\nSecond line 두 번째 줄, wrapping happens at characters not words.', left: .05, top: .36, right: .5, bottom: .43 });
+add({ kind: 'text', text: 'Serif bold italic 명조', font: 'serif', bold: true, italic: true, textSize: .035, color: 0xFFDC2626 | 0, left: .52, top: .36, right: .95, bottom: .41 });
+add({ kind: 'text', text: 'mono: const x = 42;', font: 'mono', left: .52, top: .42, right: .95, bottom: .45 });
+add({ kind: 'text', text: 'hand 손글씨 Handwriting', font: 'hand', textSize: .04, left: .52, top: .45, right: .95, bottom: .5 });
+add({ kind: 'image', asset: img, left: .05, top: .46, right: .35, bottom: .56 });
+add({ kind: 'sticker', text: '⭐', left: .38, top: .47, right: .48, bottom: .53 });
+add({ kind: 'sticker', text: '😀', left: .38, top: .54, right: .48, bottom: .6 });
+add({ kind: 'video', text: AnnotationStore.newAssetName('mp4'), asset: thumb, left: .05, top: .58, right: .38, bottom: .68 });
+add({ kind: 'video', text: AnnotationStore.newAssetName('mp4'), asset: '', left: .4, top: .58, right: .55, bottom: .64 });
+add({ kind: 'youtube', text: 'dQw4w9WgXcQ', asset: thumb, left: .58, top: .58, right: .95, bottom: .7 });
+for (const [i, k] of Shapes.KINDS.entries()) add({ kind: 'shape', text: Shapes.shapeSpec(k, 0xFF007AFF | 0, k === 'line' || k === 'arrow' ? 0 : 0x55FFB300, 3), left: .05 + (i % 5) * .185, top: .72 + Math.floor(i / 5) * .06, right: .05 + (i % 5) * .185 + .16, bottom: .72 + Math.floor(i / 5) * .06 + .05 });
+const t = Table.create(3, 3, 0xFF3A3A3C | 0, 0xFFE5F0FF | 0, 0x00FFFFFF); t.cells[0] = '이름'; t.cells[1] = 'Name'; t.cells[2] = 'a very long header cell that is ellipsized'; t.cells[4] = '값'; t.cells[8] = 'end';
+add({ kind: 'table', text: t.serialize(), left: .05, top: .85, right: .5, bottom: .93 });
+add({ kind: 'hyperlink', text: 'https://example.com', color: 1, left: .55, top: .83, right: .95, bottom: .85 });
+add({ kind: 'hyperlink', text: 'https://example.com', color: 1, left: .55, top: .85, right: .8, bottom: .87 });
+add({ kind: 'hyperlink', text: 'page:3', color: 2, left: .55, top: .89, right: .7, bottom: .91 });
+add({ kind: 'audio', text: '0:12', asset: AnnotationStore.newAssetName('m4a'), left: .52, top: .93, right: .95, bottom: .97 });
+add({ kind: 'link', text: '노트 링크 label', left: .05, top: .945, right: .45, bottom: .975 });
+
+await AnnotationPainter.preload(store);
+const out = document.getElementById('out');
+function render(label, dark, method) {
+  const c = paper(dark), g = c.getContext('2d'); AnnotationPainter.dark = dark;
+  const d = new RectF(0, 0, W, H);
+  if (method === 'all') AnnotationPainter.all(g, d, store, 0); else { AnnotationPainter.strokes(g, d, store, 0); AnnotationPainter.elements(null, g, d, store, 0); }
+  AnnotationPainter.dark = false;
+  const wrap = document.createElement('div'); wrap.id = label; wrap.append(Object.assign(document.createElement('div'), { textContent: label }), c); out.append(wrap);
+}
+render('all-light', false, 'all'); render('all-dark', true, 'all');
+// fitHeight sanity next to the page
+const fh = AnnotationPainter.fitHeight('일반 텍스트 상자\nSecond line 두 번째 줄', .45, .027, H / W, AnnotationPainter.typeface('sans', false, false));
+// ---- v1.27: pen types, translucent overlap, rotated elements ------------------------------------------------------
+const s2 = new AnnotationStore();
+function wave(y, color, pen, width, pts = 70) {
+  const k = new InkStroke(); k.page = 0; k.color = color; k.pen = pen; k.width = width;
+  for (let i = 0; i < pts; i++) { const t = i / (pts - 1); k.points.push(new InkPoint(.08 + .84 * t, y + .022 * Math.sin(t * 11), 0.55 + .35 * Math.sin(t * 5))); }
+  s2.strokes.push(k); return k;
+}
+const penY = [.05, .13, .21, .29, .37];
+penY.forEach((y, pen) => wave(y, 0xFF1C1C1E | 0, pen, .004));
+penY.forEach((y, pen) => wave(y + .04, 0xFF007AFF | 0, pen, .004, 70));
+// translucent self-overlapping loop: must stay one flat tone where it crosses itself
+const loop = new InkStroke(); loop.page = 0; loop.color = 0x80FF3B30 | 0; loop.pen = 4; loop.width = .012;
+for (let i = 0; i <= 120; i++) { const t = i / 120 * Math.PI * 4; loop.points.push(new InkPoint(.25 + .12 * Math.cos(t) + .02 * t / 6, .52 + .07 * Math.sin(t * 1.0), .6)); }
+s2.strokes.push(loop);
+const hlp = new InkStroke(); hlp.page = 0; hlp.color = 0x6600C853 | 0; hlp.pen = 0; hlp.width = .02;
+for (let i = 0; i <= 40; i++) hlp.points.push(new InkPoint(.55 + .35 * i / 40, .50 + .03 * Math.sin(i / 3), .65)); for (let i = 40; i >= 0; i--) hlp.points.push(new InkPoint(.55 + .35 * i / 40, .52 + .03 * Math.sin(i / 3), .65));
+s2.strokes.push(hlp);
+const add2 = (o) => s2.elements.push(E(Object.assign({ page: 0 }, o)));
+[0, 15, 45, 90, 180].forEach((rot, i) => add2({ kind: 'image', asset: img, rot, left: .05 + i * .19, top: .62, right: .05 + i * .19 + .15, bottom: .69 }));
+[0, 30, 90, 200].forEach((rot, i) => add2({ kind: 'sticker', text: '⭐', rot, left: .06 + i * .12, top: .72, right: .06 + i * .12 + .09, bottom: .77 }));
+[0, 20, 60, 120].forEach((rot, i) => add2({ kind: 'shape', rot, text: Shapes.shapeSpec(i % 2 ? 'arrow' : 'star', 0xFF7B2FA3 | 0, i % 2 ? 0 : 0x55FFB300, 3), left: .06 + i * .12 + .5, top: .72, right: .06 + i * .12 + .6, bottom: .77 }));
+const tb = Table.create(2, 3, 0xFF3A3A3C | 0, 0xFFE5F0FF | 0, 0x00FFFFFF); tb.cells[0] = 'A'; tb.cells[1] = 'B'; tb.cells[2] = 'C';
+add2({ kind: 'table', rot: 12, text: tb.serialize(), left: .1, top: .83, right: .5, bottom: .9 });
+add2({ kind: 'text', rot: 40, text: 'text boxes do not rotate', left: .55, top: .85, right: .95, bottom: .9 });
+{
+  const c = paper(false), g = c.getContext('2d'); AnnotationPainter.dark = false; AnnotationPainter.all(g, new RectF(0, 0, W, H), s2, 0);
+  const wrap = document.createElement('div'); wrap.id = 'v127'; wrap.append(Object.assign(document.createElement('div'), { textContent: 'v127 pens + rotation' }), c); out.append(wrap);
+  // pixel probes: the crossing of the translucent loop must have the same colour as a single pass
+  const probe = (x, y) => Array.from(g.getImageData(x, y, 1, 1).data);
+  window.__v127 = { n: s2.strokes.length, rotates: ['image', 'sticker', 'shape', 'table', 'text'].map(k => AnnotationPainter.rotates({ kind: k })), names: AnnotationPainter.PEN_NAMES };
+  // layer-vs-direct sanity: stroke with alpha 255 vs 0x80 on a white page, count distinct red tones inside the loop path
+  const t2 = document.createElement('canvas'); t2.width = W; t2.height = H; const g2 = t2.getContext('2d'); g2.fillStyle = '#fff'; g2.fillRect(0, 0, W, H);
+  AnnotationPainter.stroke(g2, new RectF(0, 0, W, H), loop);
+  const px = g2.getImageData(0, 0, W, H).data; let minG = 255;
+  for (let i = 0; i < px.length; i += 4) if (px[i + 1] < minG) minG = px[i + 1];
+  window.__v127.minG = minG;   // 0x80 * .82 felt-marker alpha on #FF3B30 over white = G 174 when flat; an overlap would reach ~120
+}
+// ---- v3 text formatting (align / underline / list kinds / check boxes), light + dark
+{
+  const s3 = new AnnotationStore();
+  const T3 = (o) => s3.elements.push(E(Object.assign({ page: 0, kind: 'text', textSize: .028 }, o)));
+  T3({ text: 'Left plain text', left: .05, top: .04, right: .47, bottom: .08 });
+  T3({ text: 'Centered + underline\nsecond line', left: .05, top: .10, right: .47, bottom: .17, align: 1, underline: true });
+  T3({ text: 'Right aligned + strike\n오른쪽으로 정렬한 글', left: .05, top: .19, right: .47, bottom: .26, align: 2, strike: true });
+  T3({ text: '\u2022 Bullet one\n\u2022 Bullet two is long enough to wrap onto a second line\n\u2022 한글 글머리', left: .05, top: .28, right: .47, bottom: .42 });
+  T3({ text: '1. First\n2. Second\n3. Third\n\n4. Fifth after a blank', left: .53, top: .04, right: .95, bottom: .19 });
+  T3({ text: '\u2611 Done task\n\u2610 Open task\n\u2611 Done again with a long wrapped line of text', left: .53, top: .21, right: .95, bottom: .36, underline: true });
+  T3({ text: '\u2610 Bold serif centered check\n\u2611 second', left: .53, top: .38, right: .95, bottom: .46, align: 1, bold: true, font: 'serif', color: 0xFFC0392B | 0, strike: true });
+  const sk = new AnnotationStore();
+  for (const [i, st] of [false, true].entries()) sk.elements.push(E({ page: 0, kind: 'image', asset: img, stretch: st, left: .05 + i * .3, top: .5, right: .3 + i * .3, bottom: .7 }));
+  const c = paper(false), g = c.getContext('2d'); AnnotationPainter.dark = false; AnnotationPainter.all(g, new RectF(0, 0, W, H), s3, 0);
+  const wrap = document.createElement('div'); wrap.id = 'v3text'; wrap.append(Object.assign(document.createElement('div'), { textContent: 'v3 text formatting (light)' }), c); out.append(wrap);
+  const cd = paper(true), gd = cd.getContext('2d'); AnnotationPainter.dark = true; AnnotationPainter.all(gd, new RectF(0, 0, W, H), s3, 0); AnnotationPainter.dark = false;
+  const wd = document.createElement('div'); wd.id = 'v3text-dark'; wd.append(Object.assign(document.createElement('div'), { textContent: 'v3 text formatting (dark)' }), cd); out.append(wd);
+  // plain text() output is unchanged by the refactor: same pixels as textBlock with default options
+  const a = paper(false), b = paper(false), ga = a.getContext('2d'), gb = b.getContext('2d');
+  AnnotationPainter.text(ga, 'same\nwrap wrap wrap wrap wrap wrap wrap wrap wrap', new RectF(10, 10, 160, 100), 16, 0xFF000000 | 0);
+  AnnotationPainter.textBlock(gb, 'same\nwrap wrap wrap wrap wrap wrap wrap wrap wrap', new RectF(10, 10, 160, 100), 16, 0xFF000000 | 0, undefined, {});
+  const da = ga.getImageData(0, 0, 200, 120).data, db = gb.getImageData(0, 0, 200, 120).data; let diff = 0; for (let i = 0; i < da.length; i++) if (da[i] !== db[i]) diff++;
+  const ink = (g, x, y, w, h) => { const d = g.getImageData(x, y, w, h).data; let n = 0; for (let i = 0; i < d.length; i += 4) if (d[i] < 100) n++; return n; };
+  const e0 = s3.elements[5], bx = AnnotationPainter.checkBoxes(new RectF(0, 0, W, H), e0);
+  // v1.29: an image keeps its ratio (letterboxed) unless stretch fills the whole box
+  const cs = Object.assign(document.createElement('canvas'), { width: W, height: H }), gs = cs.getContext('2d'); gs.fillStyle = '#fff'; gs.fillRect(0, 0, W, H); AnnotationPainter.dark = false; AnnotationPainter.elements(gs, new RectF(0, 0, W, H), sk, 0);
+  const nonWhite = (x0, y0, x1, y1) => { const d = gs.getImageData(Math.round(x0), Math.round(y0), Math.round(x1 - x0), Math.round(y1 - y0)).data; let n = 0; for (let i = 0; i < d.length; i += 4) if (d[i] < 200 || d[i + 1] < 200) n++; return n; };
+  const top = H * .5 + 3, belowFit = nonWhite(W * .05 + 3, top, W * .3 - 3, top + 6), belowStretch = nonWhite(W * .35 + 3, top, W * .6 - 3, top + 6);
+  window.__v3 = { diff, boxes: bx.length, stretch: { letterboxedTopRowInk: belowFit, stretchedTopRowInk: belowStretch }, strike: !!s3.elements[2].strike };
+}
+{
+  // v1.30.0 freehand highlight: round caps, flat alpha when the stroke crosses itself, straight band unchanged
+  const s4 = new AnnotationStore(); const MK = (o) => { const m = new Mark(); Object.assign(m, { page: 0, left: 0, top: 0, right: 0, bottom: 0, color: 0x66FFEB3B | 0 }, o); s4.marks.push(m); return m; };
+  MK({ left: .05, top: .05, right: .6, bottom: .08 });                                           // straight band (v1.29 look)
+  MK({ path: [.1, .2, .5, .2, .3, .26, .3, .14, .3, .2], thick: .03, color: 0x80FF3B30 | 0 });    // self-crossing freehand (flat alpha)
+  MK({ path: [.1, .4, .2, .5, .35, .38, .5, .55, .7, .4], thick: .05, color: 0x6634C759 | 0 });   // thick curve
+  MK({ path: [.15, .7, .15, .7001], thick: .04, color: 0x66007AFF | 0 });                          // dot (round cap)
+  MK({ noteOnly: true, left: .9, top: .6, right: .99, bottom: .7, color: 0x66FF0000 | 0 });         // note-only draws nothing
+  const c = paper(false), g = c.getContext('2d'); AnnotationPainter.dark = false; AnnotationPainter.all(g, new RectF(0, 0, W, H), s4, 0);
+  const wrap = document.createElement('div'); wrap.id = 'v130'; wrap.append(Object.assign(document.createElement('div'), { textContent: 'v130 freehand highlights' }), c); out.append(wrap);
+  const rgb = (x, y) => Array.from(g.getImageData(Math.round(x), Math.round(y), 1, 1).data).slice(0, 3);
+  const single = rgb(W * .4, H * .2), cross = rgb(W * .3, H * .2), outside = rgb(W * .9, H * .9), capEnd = rgb(W * .1 - H * .012, H * .2);
+  window.__v130 = { single, cross, outside, capEnd, dot: rgb(W * .15, H * .7), noteOnlyPx: rgb(W * .95, H * .65), band: rgb(W * .3, H * .065) };
+}
+window.__done = { fh, w: W, h: H, v127: window.__v127, v3: window.__v3, v130: window.__v130 };
+</script>

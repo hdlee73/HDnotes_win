@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 108 108" width="256" height="256">
+  <title>Everynote</title>
+  <defs>
+    <filter id="sh" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="1.6" stdDeviation="1.8" flood-color="#1B2670" flood-opacity="0.32"/>
+    </filter>
+  </defs>
+  <g transform="translate(54 54) scale(1.5) translate(-52 -54)">
+    <path fill="#FFFFFF" stroke="#B9C3E6" stroke-width="1.2" stroke-linejoin="round" filter="url(#sh)" d="M34,26h24l12,12v41a5,5 0 0,1 -5,5H34a5,5 0 0,1 -5,-5V31a5,5 0 0,1 5,-5z"/>
+    <path fill="#D9E1FB" d="M58,26v8a4,4 0 0,0 4,4h8z"/>
+    <path fill="#C3CDEE" d="M37.5,45h24a2,2 0 0,1 0,4h-24a2,2 0 0,1 0,-4zM37.5,54h18a2,2 0 0,1 0,4h-18a2,2 0 0,1 0,-4zM37.5,63h12a2,2 0 0,1 0,4h-12a2,2 0 0,1 0,-4z"/>
+    <g transform="rotate(40 68 60)" filter="url(#sh)">
+      <path fill="#FF8FA3" d="M63.5,36a4.5,4.5 0 0,1 9,0v4h-9z"/>
+      <path fill="#C9CED8" d="M63.5,40h9v4h-9z"/>
+      <path fill="#FFC53D" d="M63.5,44h9v22h-9z"/>
+      <path fill="#F29D0B" d="M68,44h4.5v22H68z"/>
+      <path fill="#F7DDB5" d="M63.5,66h9l-4.5,10z"/>
+      <path fill="#2B2F45" d="M66.2,71.5h3.6L68,76z"/>
+    </g>
+  </g>
+</svg>

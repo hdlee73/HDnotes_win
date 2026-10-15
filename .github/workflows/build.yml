@@ -1,0 +1,237 @@
+name: Build & Release
+
+on:
+  push:
+    branches: [main, host-dev, host-v3]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      test_libreoffice:
+        description: 'Install LibreOffice on the runner and smoke-test docx -> PDF conversion'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  # Offline HWP/HWPX -> PDF engine (rhwptopdf WASM), same pinned source and patch as the Android app.
+  hwp-engine:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: sanguneo/rhwptopdf
+          ref: adbc4bf0f5c6e041ed65b0dbc8aa6b810990a48b
+          path: .hwp-engine-source
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: .hwp-engine-source
+      - uses: jetli/wasm-pack-action@v0.4.0
+        with:
+          version: 'v0.13.1'
+      - name: Korean TTC regression font
+        run: sudo apt-get update && sudo apt-get install -y fonts-noto-cjk
+      - name: Test and build offline HWP engine
+        env:
+          PDFNOTE_TEST_FONT: /usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc
+        run: |
+          set -o pipefail
+          python3 tools/prepare_hwp_engine.py --out web/hwp 2>&1 | tee engine.log || {
+            grep -E "error(\[|:)|panicked|FAILED|failed" engine.log | head -8 | while read -r l; do echo "::error title=hwp-engine::${l:0:400}"; done
+            exit 1; }
+          ls -l web/hwp
+          echo "::notice title=hwp-engine::built $(stat -c %s web/hwp/rhwptopdf.umd.js) + $(stat -c %s web/hwp/rhwptopdf.umd_bg.wasm) bytes"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hwp-engine
+          path: |
+            web/hwp/rhwptopdf.umd.js
+            web/hwp/rhwptopdf.umd_bg.wasm
+          if-no-files-found: error
+
+  build:
+    needs: hwp-engine
+    if: ${{ !cancelled() }}
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Plan (release when a tag is pushed, or when main carries a VERSION without a release yet)
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = 'dev'; $rel = 'false'
+          if ("${{ github.ref }}" -like "refs/tags/v*") { $tag = "${{ github.ref_name }}"; $rel = 'true' }
+          elseif ("${{ github.ref }}" -eq "refs/heads/main" -and "${{ github.event_name }}" -eq "push" -and (Test-Path VERSION)) {
+            $cand = 'v' + (Get-Content VERSION -Raw).Trim()
+            gh release view $cand *> $null
+            if ($LASTEXITCODE -ne 0) { $tag = $cand; $rel = 'true' } else { Write-Host "release $cand already exists: build only" }
+          }
+          "RELEASE_TAG=$tag" >> $env:GITHUB_ENV
+          "DO_RELEASE=$rel" >> $env:GITHUB_ENV
+          Write-Host "::notice title=release-plan::tag=$tag release=$rel"
+          exit 0
+
+      - name: Fetch HWP engine
+        id: engine
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: hwp-engine
+          path: web/hwp
+      - name: Check HWP engine
+        shell: pwsh
+        run: |
+          if ((Test-Path web/hwp/rhwptopdf.umd.js) -and (Test-Path web/hwp/rhwptopdf.umd_bg.wasm)) {
+            Write-Host "::notice title=hwp-engine::embedded $([int]((Get-Item web/hwp/rhwptopdf.umd_bg.wasm).Length/1KB)) KB wasm"
+          } elseif ($env:DO_RELEASE -eq 'true') {
+            Write-Host "::error title=hwp-engine::engine missing on a release build"; exit 1
+          } else {
+            Write-Host "::warning title=hwp-engine::engine missing: HWP conversion unavailable in this build"
+          }
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Version
+        id: ver
+        shell: pwsh
+        run: |
+          $v = (Get-Content VERSION -Raw).Trim()
+          if ($env:DO_RELEASE -eq 'true') { $v = $env:RELEASE_TAG -replace '^v\.?','' }
+          "version=$v" >> $env:GITHUB_OUTPUT
+
+      - name: Restore
+        shell: pwsh
+        run: |
+          dotnet restore host/Everynote.csproj -r win-x64 2>&1 | Tee-Object -FilePath restore.log
+          if ($LASTEXITCODE -ne 0) {
+            (Get-Content restore.log | Where-Object { $_ -match 'error' } | Select-Object -Unique -First 8) | ForEach-Object { Write-Host "::error title=restore::$($_.Trim() -replace '%','%25')" }
+            exit 1
+          }
+
+      - name: Publish win-x64 (self-contained, single file)
+        shell: pwsh
+        run: |
+          dotnet publish host/Everynote.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true -p:PublishReadyToRun=true -p:Version=${{ steps.ver.outputs.version }} -o out/x64 2>&1 | Tee-Object -FilePath build-x64.log
+          if ($LASTEXITCODE -ne 0) {
+            (Get-Content build-x64.log | Where-Object { $_ -match ': error ' } | ForEach-Object { $_.Trim() -replace '^.*?host[\\/]','' } | Select-Object -Unique -First 10) | ForEach-Object { Write-Host "::error title=build-x64::$($_ -replace '%','%25')" }
+            exit 1
+          }
+          Write-Host "::notice title=build-x64::exe $([int]((Get-Item out/x64/Everynote.exe).Length/1MB)) MB"
+          (Get-Content build-x64.log | Where-Object { $_ -match ': warning ' } | ForEach-Object { $_.Trim() -replace '^.*?host[\\/]','' } | Select-Object -Unique -First 5) | ForEach-Object { Write-Host "::warning title=build-warn::$($_ -replace '%','%25')" }
+
+      - name: Publish win-arm64 (self-contained, single file)
+        shell: pwsh
+        run: |
+          dotnet publish host/Everynote.csproj -c Release -r win-arm64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true -p:PublishReadyToRun=true -p:Version=${{ steps.ver.outputs.version }} -o out/arm64 2>&1 | Tee-Object -FilePath build-arm64.log
+          if ($LASTEXITCODE -ne 0) {
+            (Get-Content build-arm64.log | Where-Object { $_ -match ': error ' } | ForEach-Object { $_.Trim() -replace '^.*?host[\\/]','' } | Select-Object -Unique -First 10) | ForEach-Object { Write-Host "::error title=build-arm64::$($_ -replace '%','%25')" }
+            exit 1
+          }
+
+      - name: Prepare LibreOffice + docx (optional)
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.test_libreoffice }}
+        shell: pwsh
+        run: |
+          choco install libreoffice-fresh -y --no-progress | Select-Object -Last 3
+          $docx = Join-Path ([IO.Path]::GetTempPath()) 'smoke.docx'
+          python tools/make_sample_docx.py $docx
+          "SMOKE_DOCX=$docx" >> $env:GITHUB_ENV
+
+      - name: Smoke test (launch, open sample PDF, host protocol checks, screenshot)
+        shell: pwsh
+        run: |
+          ./tools/smoke.ps1 -Exe "$PWD\out\x64\Everynote.exe" -Pdf "$PWD\dev\samples\sample-ko.pdf" -Out smoke -Docx "$env:SMOKE_DOCX" -Hwpx "$PWD\tools\sample.hwpx"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: smoke-test
+          path: smoke/*
+          if-no-files-found: ignore
+
+      - name: Install Inno Setup
+        shell: pwsh
+        run: |
+          choco install innosetup -y --no-progress 2>&1 | Select-Object -Last 4
+          $iscc = Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6\ISCC.exe'
+          if (-not (Test-Path $iscc)) { $iscc = (Get-Command ISCC.exe -ErrorAction SilentlyContinue).Source }
+          if (-not $iscc -or -not (Test-Path $iscc)) { Write-Host "::error title=inno::ISCC.exe not found after choco install"; exit 1 }
+          "ISCC=$iscc" >> $env:GITHUB_ENV
+          Write-Host "::notice title=inno::$iscc $((Get-Item $iscc).VersionInfo.ProductVersion)"
+
+      - name: Compile installers (x64, arm64)
+        shell: pwsh
+        run: |
+          $v = $env:RELEASE_TAG
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          foreach ($arch in 'x64', 'arm64') {
+            $log = "iscc-$arch.log"
+            & $env:ISCC "/DAppVersion=${{ steps.ver.outputs.version }}" "/DArch=$arch" "/DSourceExe=..\out\$arch\Everynote.exe" "/DOutputBase=Everynote-Setup-$v-$arch" "/DOutDir=..\dist" installer\Everynote.iss 2>&1 | Tee-Object -FilePath $log
+            if ($LASTEXITCODE -ne 0) {
+              (Get-Content $log | Where-Object { $_ -match 'Error|error' } | Select-Object -Unique -First 10) | ForEach-Object { Write-Host "::error title=iscc-$arch::$($_.Trim() -replace '%','%25')" }
+              exit 1
+            }
+            (Get-Content $log | Where-Object { $_ -match 'Warning' } | Select-Object -Unique -First 5) | ForEach-Object { Write-Host "::warning title=iscc-warn-$arch::$($_.Trim() -replace '%','%25')" }
+          }
+          Get-ChildItem dist | Format-Table Name, Length
+
+      - name: Installer smoke test (silent install, shortcuts, Apps & features, uninstall)
+        shell: pwsh
+        run: |
+          $v = $env:RELEASE_TAG
+          ./tools/installer-smoke.ps1 -Setup "$PWD\dist\Everynote-Setup-$v-x64.exe" -Out installer-smoke
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: installer-smoke
+          path: installer-smoke/*
+          if-no-files-found: ignore
+
+      - name: Collect release files
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          $v = $env:RELEASE_TAG
+          Copy-Item out/x64/Everynote.exe "dist/Everynote-$v-win-x64.exe"
+          Copy-Item out/arm64/Everynote.exe "dist/Everynote-$v-win-arm64.exe"
+          # SHA-256 of every release file; the in-app updater checks the downloaded installer against this list
+          $lines = Get-ChildItem dist -File | Where-Object { $_.Name -ne 'SHA256SUMS.txt' } | Sort-Object Name | ForEach-Object { "$((Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower())  $($_.Name)" }
+          [IO.File]::WriteAllText("$PWD/dist/SHA256SUMS.txt", (($lines -join "`n") + "`n"), (New-Object Text.UTF8Encoding($false)))
+          Get-Content dist/SHA256SUMS.txt
+          Get-ChildItem dist | Format-Table Name, Length
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Everynote-windows
+          path: dist/*
+
+      - name: Publish GitHub Release
+        if: env.DO_RELEASE == 'true'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = $env:RELEASE_TAG
+          $norm = 'v' + ($tag -replace '^v\.?','')
+          $notes = "docs/release-notes/$norm.md"
+          $files = Get-ChildItem dist | ForEach-Object { $_.FullName }
+          gh release view $tag *> $null
+          if ($LASTEXITCODE -eq 0) {
+            gh release upload $tag @files --clobber
+            if (Test-Path $notes) { gh release edit $tag --notes-file $notes --title "Everynote $tag" }
+          } elseif (Test-Path $notes) {
+            gh release create $tag @files --title "Everynote $tag" --notes-file $notes --target $env:GITHUB_SHA
+          } else {
+            gh release create $tag @files --title "Everynote $tag" --generate-notes --target $env:GITHUB_SHA
+          }

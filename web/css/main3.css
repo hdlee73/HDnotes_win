@@ -1,0 +1,87 @@
+/* MainActivity part 3: lasso bar, inline typing, recordings tab rows, recorder bar, audio player. 1dp == 1px */
+.m3-ib{display:flex;align-items:center;justify-content:center;border:0;background:transparent;cursor:pointer;flex:none;border-radius:50%;box-sizing:border-box}
+.m3-ib:hover{background:rgba(0,0,0,.05)}
+
+/* ---- lasso shape bar ---- */
+.m3-lasso{position:relative;height:44px;display:flex;align-items:center;padding:0 6px 0 2px;gap:2px;background:rgba(255,255,255,.97);border-radius:22px;box-shadow:0 2px 10px rgba(0,0,0,.25);z-index:30;white-space:nowrap}
+.m3-lasso .m-grip{height:44px}
+.m3-lchip{height:36px;display:flex;align-items:center;padding:0 12px 0 10px;margin:0 2px;border-radius:18px;cursor:pointer;color:#1C1C1E}
+.m3-llabel{font-size:13px;padding-left:5px}
+
+/* ---- inline typing ---- */
+.m3-inline-text{position:absolute;z-index:40;box-sizing:border-box;margin:0;padding:2px 3px;resize:none;overflow:hidden;background:rgba(255,255,255,.4);border:1px solid #007AFF;border-radius:4px;outline:none;user-select:text;-webkit-user-select:text;touch-action:auto;white-space:pre-wrap;word-break:break-all}
+.m3-inline-text::placeholder{color:var(--ph,rgba(28,28,30,.4));opacity:1}
+.m3-handle{position:absolute;z-index:41;width:30px;height:30px;border-radius:15px;color:#fff;font-size:14px;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 4px rgba(0,0,0,.35);cursor:pointer;touch-action:none;user-select:none}
+.m3-inline-bar{position:absolute;z-index:42;left:50%;transform:translateX(-50%);top:0;width:min(330px,calc(100% - 16px));padding:2px 6px;background:rgba(255,255,255,.95);border-radius:20px;box-shadow:0 3px 12px rgba(0,0,0,.22);box-sizing:border-box}
+.m3-inline-row{display:flex;align-items:center;height:38px}
+.m3-inline-size{width:40px;height:32px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#1C1C1E}
+
+/* ---- recorder bar / audio player ---- */
+.m3-recbar{position:absolute;z-index:45;left:50%;transform:translateX(-50%);bottom:14px;display:flex;align-items:center;padding:6px 8px 6px 16px;background:rgba(255,255,255,.98);border-radius:28px;box-shadow:0 4px 16px rgba(0,0,0,.25);white-space:nowrap}
+.m3-rectime{font-size:15px;font-weight:700;color:#1C1C1E;padding:0 12px 0 8px}
+.m3-audio{padding:8px 16px 4px;display:flex;flex-direction:column}
+.m3-audio-time{height:32px;display:flex;align-items:center;justify-content:center;font-size:15px;color:#1C1C1E}
+.m3-seek{width:100%;height:36px;accent-color:#007AFF;margin:0}
+
+/* ---- recordings tab rows (same look as the outline rows of the side panel) ---- */
+.m3-empty{text-align:center;font-size:12px;color:#8E8E93;padding:18px 4px 8px;white-space:pre-wrap;word-break:keep-all}
+.m3-row{display:flex;align-items:center;margin-bottom:6px;background:#fff;cursor:pointer;will-change:transform;padding:10px 4px 10px 14px;border-radius:16px}
+.m3-row-text{flex:1;min-width:0;font-size:14px;color:#1C1C1E;white-space:pre-wrap;overflow-wrap:anywhere}
+
+/* ---- help (large, left aligned) ---- */
+.m3-help{display:flex;flex-direction:column;width:min(calc(100vw - 20px),720px);height:92vh;background:#fff;border-radius:20px;padding:20px 22px 6px;box-sizing:border-box;text-align:left;box-shadow:0 10px 40px rgba(0,0,0,.25);opacity:0;transform:scale(.9);transition:opacity .18s,transform .18s}
+.ad-root.in .m3-help{opacity:1;transform:none}
+.ad-root.out .m3-help{opacity:0;transform:scale(.95);transition:opacity .12s,transform .12s}
+.m3-help-title{font-size:21px;font-weight:700;color:#1C1C1E}
+.m3-help-ver{font-size:13px;color:#8E8E93;padding:2px 0 8px}
+.m3-help-body{flex:1 1 0;min-height:0;overflow-y:auto;padding-right:4px}
+.m3-help-h{font-size:17px;font-weight:700;color:#007AFF;padding:20px 0 4px}
+.m3-help-h:first-child{padding-top:6px}
+.m3-help-item{font-size:15px;line-height:1.3;color:#2C2C2E;padding-top:8px;white-space:pre-wrap;user-select:text;-webkit-user-select:text}
+.m3-help-line{height:1px;background:#E5E5EA;margin-top:10px;transform:scaleY(.5);flex:none}
+.m3-help-ok{flex:none;height:50px;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:#007AFF;cursor:pointer}
+.m3-help-ok:hover{background:rgba(0,0,0,.035)}
+
+/* ---- v3: icon-only lasso shapes ---- */
+.m3-lchip{width:40px;height:36px;justify-content:center;padding:0;margin:0 1px;border-radius:14px;background:#F2F2F7;color:#3A3A3C}
+.m3-lchip:hover{background:#E8E8EE}
+.m3-lchip.on{background:#E5F0FF;color:#007AFF;box-shadow:inset 0 0 0 2px #007AFF}
+
+/* ---- v3: typing toolbar (two icon rows) + list markers ---- */
+.m3-inline-bar{width:min(424px,calc(100% - 16px))}
+.m3-inline-row{flex-wrap:nowrap}
+.m3-inline-row2{height:36px;padding-bottom:2px}
+.m3-tbtn{flex:none;width:34px;height:32px;margin:0 1px;padding:0;border:0;border-radius:16px;background:transparent;color:#3A3A3C;display:flex;align-items:center;justify-content:center;cursor:pointer;
+  font:700 14px/1 inherit;-webkit-user-select:none;user-select:none}
+.m3-tbtn:hover{background:rgba(0,0,0,.06)}
+.m3-tbtn.on{background:#E5F0FF;color:#007AFF;box-shadow:inset 0 0 0 1.5px #007AFF}
+.m3-tbtn:focus{outline:none}
+.m3-tbtn:focus-visible{outline:2px solid rgba(0,122,255,.55);outline-offset:1px}
+.m3-aa{width:38px;margin-right:4px;background:#F2F2F7;font-family:inherit;font-weight:700;font-size:14px}
+.m3-sep{flex:none;width:1px;height:20px;margin:0 5px;background:#E0E0E6}
+.m3-inline-size{width:44px}
+.m3-inline-marks{position:absolute;z-index:41;width:0;height:0;overflow:visible;pointer-events:none}
+.m3-mk{position:absolute;box-sizing:border-box;pointer-events:none}
+.m3-mk-num{text-align:right;white-space:nowrap}
+.m3-chk{border-style:solid;pointer-events:auto;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.m3-chk .ico{margin:0}
+
+.m3-fontbox{height:40px;display:flex;align-items:center;padding:0 12px;border-radius:18px;background:#F2F2F7;color:#1C1C1E;cursor:pointer;margin:2px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.m3-fontrow{min-height:44px;display:flex;align-items:center;padding:0 16px;cursor:pointer;border-radius:10px;white-space:nowrap}
+.m3-fontrow:hover{background:rgba(0,0,0,.04)}
+
+/* ---- v3.6.1: the typing toolbar never exceeds the page area (a side panel narrows it); narrower than its content it scrolls sideways ---- */
+.m3-inline-bar{max-width:calc(100% - 16px);overflow-x:auto;overflow-y:hidden;scrollbar-width:none;overscroll-behavior-x:contain}
+.m3-inline-bar::-webkit-scrollbar{display:none}
+.m3-inline-bar>*{width:max-content;min-width:100%;box-sizing:border-box}
+.m3-line-row{height:38px;align-items:center}
+.m3-line-label{font-size:13px;color:#1C1C1E;padding:0 6px}
+.m3-fit-ruler{margin-left:8px;height:32px;padding:0 10px;border:0;border-radius:16px;background:#E8F1FF;color:#007AFF;font-size:13px;font-weight:700;cursor:pointer}
+
+/* ---- v3.27.0: selected-item bar (cut / copy / duplicate / paste / delete) ---- */
+.m-elbar{position:absolute;z-index:41;display:flex;align-items:center;padding:3px 4px;background:rgba(255,255,255,.97);border-radius:22px;box-shadow:0 3px 12px rgba(0,0,0,.22);white-space:nowrap}
+.m-elbtn{flex:none;height:36px;padding:0 10px;margin:0 1px;border:0;border-radius:18px;background:transparent;color:#1C1C1E;display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer}
+.m-elbtn:hover{background:rgba(0,0,0,.06)}
+.m-elbtn:focus{outline:none}
+.m-elbtn[data-tag=element_delete]{color:#FF3B30}
+@media (max-width:640px){.m-elbtn .t{display:none}.m-elbtn{padding:0 9px}}
