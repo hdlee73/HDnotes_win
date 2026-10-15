@@ -15,7 +15,7 @@ function Check([string]$name, [bool]$cond, [string]$extra = '') {
   else { Write-Host "::error title=installer-FAILED::$name $(Esc $extra)"; $script:fail = $true }
 }
 
-$appId = '{3D6B1F4E-8A27-4C59-B0E3-5F9A2C7D1E84}_is1'
+$appId = '{1E7F32BF-7C7D-4008-89D9-B3CAE0B0B183}_is1'
 $uninstKey = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\$appId"
 $installDir = Join-Path $env:LOCALAPPDATA 'Programs\HDnotes'
 $exe = Join-Path $installDir 'HDnotes.exe'
