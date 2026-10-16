@@ -1,5 +1,5 @@
 """One step from the master icon to every Windows icon asset.
-Master: web/assets/hdnotes-icon.svg (the plate is part of the drawing; installer/hdnotes-icon.svg is a copy of it).
+Master: web/assets/hdnotes-icon.svg (isometric paper stack and pen on a mint plate; the plate is part of the drawing; installer/hdnotes-icon.svg is a copy of it).
 Writes: host/Assets/app.ico (WPF window + exe), installer/hdnotes.ico (Setup), installer/wizard-large.bmp + wizard-small.bmp,
         web/assets/hdnotes-icon-256.png / -512.png / favicon-32.png / favicon.svg.
 To swap the concept: replace web/assets/hdnotes-icon.svg and run  python tools/make_icons.py
@@ -45,7 +45,7 @@ fav = re.sub(r'<svg([^>]*)>', lambda m: '<svg' + m.group(1) + '>\n  <title>HDnot
 open(os.path.join(root, 'web/assets/favicon.svg'), 'w', encoding='utf-8').write(fav)
 
 # Inno Setup wizard images (BMP, no alpha): large 164x314 with the plate's green gradient, small 55x55 on white
-top, bot = (0x12, 0xB8, 0x86), (0x0B, 0x7A, 0x6B)
+top, bot = (0x63, 0xE6, 0xBE), (0x12, 0xB8, 0x86)
 big = Image.new('RGB', (164, 314))
 for y in range(314):
     t = y / 313
