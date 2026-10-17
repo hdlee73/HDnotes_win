@@ -1,4 +1,4 @@
-// v3.10.0 UI polish checks: dialog button centering, swatch circles, rail menus, fullscreen dock tint, two-page gap. usage: node dev/ui-polish-test.mjs [outdir]
+// v3.10.0 UI polish checks: dialog button centering, swatch circles, rail menus, full screen tool strip, two-page gap. usage: node dev/ui-polish-test.mjs [outdir]
 import {chromium} from '/tmp/npmtest/node_modules/playwright/index.mjs';
 import {serve} from './server.mjs'; import fs from 'fs';
 const OUT=process.argv[2]||'dev/out'; fs.mkdirSync(OUT,{recursive:true});
@@ -49,10 +49,9 @@ for (const side of ['right','left']) {
   check('rail '+side+' page label vertically centered', Math.abs(pl)<=1, 'dy='+pl);
 }
 await pg.evaluate(()=>app.setBarPlace('bottom')); await pg.waitForTimeout(300);
-// fullscreen dock icons follow the tool strip (HDnotes: monochrome ink line icons, like Samsung Notes)
+// full screen keeps the same tool strip as the normal view (Samsung Notes), here docked at the bottom
 await pg.evaluate(()=>app.toggleFullscreen()); await pg.waitForTimeout(500);
-const tints=await pg.evaluate(()=>[...document.querySelectorAll('[data-tag=fullscreen_toolbar] svg')].map(s=>getComputedStyle(s).color));
-check('fullscreen dock icons are one ink colour', tints.length>=5&&new Set(tints).size===1, JSON.stringify(tints));
+check('full screen keeps the bottom tool strip', await pg.evaluate(()=>app.bottomBar.checkVisibility()&&!app.header.checkVisibility()));
 await pg.screenshot({path:`${OUT}/fullscreen.png`});
 await pg.evaluate(()=>app.toggleFullscreen()); await pg.waitForTimeout(300);
 // highlighter transparency menu: slider + quick buttons, kept in prefs, applied to the highlight colour

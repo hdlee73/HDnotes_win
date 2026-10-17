@@ -58,11 +58,11 @@ await pg.evaluate(()=>app.toggleFloatBar()); await pg.waitForTimeout(200);
 // HDnotes: docking goes back to the default right-side tool strip (beside the page, in the content row)
 check('toggle off docks it again', await pg.evaluate(()=>app.bottomBar.parentElement===app.studySplit&&app.bottomBar.classList.contains('rail-right')&&!app.bottomBar.classList.contains('float')));
 
-// fullscreen toolbar stays
-await pg.evaluate(()=>{app.toggleDockPinned();app.toggleFullscreen()}); await pg.waitForTimeout(4500);
-check('pinned fullscreen toolbar does not auto-hide', await pg.evaluate(()=>getComputedStyle(app.fullscreenDock).display!=='none'&&getComputedStyle(app.dockGrip).display!=='none'));
-await pg.screenshot({path:'dev/out/ui2-5-dock.png'});
-await pg.evaluate(()=>{app.toggleFullscreen();app.toggleDockPinned()});
+// full screen keeps the same tool strip (Samsung Notes), only the top bar and tabs hide
+await pg.evaluate(()=>app.toggleFullscreen()); await pg.waitForTimeout(500);
+check('full screen keeps the tool strip and shows the exit button', await pg.evaluate(()=>app.bottomBar.checkVisibility()&&!app.header.checkVisibility()&&app.fullscreenExit.checkVisibility()));
+await pg.screenshot({path:'dev/out/ui2-5-fullscreen.png'});
+await pg.evaluate(()=>app.toggleFullscreen());
 
 // typing toolbar with the side panel open: inside the page area, scrolls sideways when narrower than its content
 await pg.evaluate(()=>{app.selectPanelTab(1);app.sidePanel.style.width='300px';window.dispatchEvent(new Event('resize'))}); await pg.waitForTimeout(300);

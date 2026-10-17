@@ -67,8 +67,7 @@ export class SettingsView {
       this.link('기본 노트 스타일', '새 노트를 만들 때 가장 처음 선택되어 있는 양식을 정합니다.', () => this.chooseNoteStyle(), 'set_note_style', describeNoteStyle(style), 'set_note_style_value'),
       this.toggle('화면 켜 둠', '읽는 동안 화면이 꺼지지 않습니다.', prefs.getBoolean('keep_awake', false), on => {
         prefs.putBoolean('keep_awake', on); app.applyKeepAwake(); toast(on ? '읽는 동안 화면이 꺼지지 않습니다' : '화면 자동 꺼짐을 따릅니다');
-      }, 'set_keep_awake'),
-      this.toggle('전체 화면 메뉴 계속 표시', '전체 화면에서도 아래쪽 도구 줄을 항상 보여 줍니다.', app.dockPinned(), () => app.toggleDockPinned(), 'set_dock_pinned'));
+      }, 'set_keep_awake'));
     this.section('문서 보기',
       this.toggle('여백 자르기', '문서의 흰 여백을 잘라 화면에 꽉 채웁니다.', app.cropMargins(), on => {
         prefs.putBoolean('crop_margins', on); app.applyCrop(); toast(on ? '문서 여백을 잘라 화면에 꽉 채웁니다' : '원래 여백을 그대로 보여줍니다');
