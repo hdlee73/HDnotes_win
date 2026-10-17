@@ -1,5 +1,5 @@
 // MainActivity port, part 1 = MainActivity.java lines 1-660 (+ the few shared helpers it needs).
-// Boot (onCreate, host info, library, session restore, file args, drag&drop, Esc/back), buildUi, header/tabs/bars/dock, tools, menus,
+// Boot (onCreate, host info, library, session restore, file args, drag&drop, Esc/back), buildUi, header/tabs/bars, tools, menus,
 // selection popup, translate/TTS, undo/redo, bookmarks, page turning (curl / slide / none, two-page view), OCR wiring.
 // All methods keep the Java names and are assigned onto MainActivity.prototype by installMain1().
 // Android -> web notes: Uri == absolute path string, PdfRenderer == PdfDoc (this.renderer), Bitmap == HTMLCanvasElement,
@@ -292,7 +292,7 @@ function makePageDrag(app) {
 // ------------------------------------------------------------------------------------------------ init
 export function initMain1(app) {
   Object.assign(app, {
-    hostInfo: null, dockShown: false, _dockTimer: 0, _dockHideEnd: 0, writeBar: null, readBar: null,
+    hostInfo: null, writeBar: null, readBar: null,
     selectionPopup: null, speech: null, speechReady: false, speechPending: null, speechLocale: 'en-US',
     pendingSource: null, pendingBounds: null, pendingSession: null, pendingPage: 0,
     awaitingOfficeReturn: false, officeConverting: false, hwpConversion: null, officeToken: null,
@@ -300,7 +300,6 @@ export function initMain1(app) {
     descriptor: null, inkPen: 0, templateTarget: null,
   });
   if (app.inlineElement === undefined) app.inlineElement = null;
-  app.dockHider = () => app.hideFullscreenDock(true);
   app.pageDragHandler = makePageDrag(app);
 }
 
@@ -360,11 +359,6 @@ const methods = {
     const hasFiles = e => e.dataTransfer && [...(e.dataTransfer.types || [])].includes('Files');
     window.addEventListener('dragover', e => { if (hasFiles(e) && !e.defaultPrevented && this._droppableDocs(e.dataTransfer)) e.preventDefault(); });
     window.addEventListener('drop', e => { if (!hasFiles(e) || e.defaultPrevented) return; const files = this._documentFiles(e.dataTransfer); if (!files.length) return; e.preventDefault(); this.openDroppedFiles(files); });
-    // desktop: moving the mouse to the very bottom edge in full screen brings the dock back (the touch swipe-up has no mouse twin)
-    window.addEventListener('pointermove', e => {
-      if (this.fullscreen && this.fullscreenDock && !this.dockShown && e.pointerType === 'mouse' && e.clientY >= window.innerHeight - 4) this.showFullscreenDock(false);
-    });
-    window.addEventListener('focus', () => this.enforceChrome());
     window.addEventListener('pagehide', () => { try { this.saveSessionState(); AnnotationStore.flushAll(); } catch (e) { /* ignore */ } });
   },
   _documentFiles(dt) { return [...(dt.files || [])].filter(f => OFFICE_EXTS.includes((/\.([^.]+)$/.exec(f.name) || [])[1]?.toLowerCase())); },
@@ -463,7 +457,6 @@ const methods = {
     b.addEventListener('click', () => click(b));
     return b;
   },
-  dockIcon(name, description, tint, action) { return this.icon(name, description, tint, action, 'm-dockbtn'); },
   barIcon(bar, name, description, tint, action) {
     const b = this.icon(name, description, tint, action, 'm-tb');
     this.baseTint.set(b, tint); bar.append(b); return b;
@@ -514,7 +507,6 @@ const methods = {
     if (this.sidePanel) { this.sidePanel.style.flex = 'none'; this.sidePanel.style.height = '100%'; if (!this.sidePanel.style.width) this.sidePanel.style.width = this.sidePanelWidth() + 'px'; viewerRow.append(this.sidePanel); }
 
     const viewport = this.viewportLayer = h('div', { class: 'm-viewport', dataset: { tag: 'viewport' } });
-    this.installViewportSwipe(viewport);
     this.installDrop(viewport);
     const papers = this.papers = h('div', { class: 'm-papers' });
     const firstListener = makePageListener(this), secondListener = makePageListener(this);
@@ -597,58 +589,14 @@ const methods = {
     this.applyBarMode();
     this.applyStripFolded();
 
-    // ---- fullscreen dock + handle (overlays of root)
-    const dock = this.fullscreenDock = h('div', { class: 'm-dock', dataset: { tag: 'fullscreen_toolbar' } });
-    dock.append(
-      this.dockIcon('ic_outline', '전체 화면 개요', 0xFF007AFF, () => this.showOutlineList()),
-      this.dockIcon('ic_eye', '전체 화면 보기 방법', 0xFF30B0C7, v => this.showViewMenu(v)),
-      this.dockIcon('ic_ink', '전체 화면 필기도구', 0xFF5856D6, v => this.penTap(v)),
-      this.dockIcon('ic_eraser', '전체 화면 지우개', 0xFFFF6B8A, v => this.eraserBarTap(v)),
-      this.dockIcon('ic_insert', '전체 화면 삽입', 0xFFFF2D55, v => this.showInsertMenu(v)),
-      this.dockIcon('ic_text', '전체 화면 타이핑', 0xFF34C759, () => this.toggleTyping()),
-      this.dockIcon('ic_lasso', '전체 화면 올가미', 0xFFAF52DE, () => this.toggleLasso()),
-      this.dockIcon('ic_more_vert', '전체 화면 메뉴', 0xFF8E8E93, v => this.showMainMenu(v, true)),
-      this.fullscreenExit = this.dockIcon('ic_fullscreen_exit', '전체 화면 종료', 0xFFAF52DE, () => this.toggleFullscreen()));
-    this.dockGrip = this.makeGrip(dock, 'dock'); dock.prepend(this.dockGrip);
-    root.append(h('div', { class: 'm-dockwrap' }, dock));
-    const rearm = () => { if (this.dockShown && !this.dockPinned()) { clearTimeout(this._dockTimer); this._dockTimer = setTimeout(this.dockHider, 6000); } };
-    const hold = () => { if (this.dockShown) clearTimeout(this._dockTimer); };
-    dock.addEventListener('pointerdown', hold); dock.addEventListener('pointerup', rearm); dock.addEventListener('pointercancel', rearm);
-    dock.addEventListener('pointerenter', e => { if (e.pointerType === 'mouse') hold(); });
-    dock.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse') rearm(); });
-    this.dockHandle = h('div', { class: 'm-dockhandle', dataset: { tag: 'fullscreen_handle' }, 'aria-label': '도구 모음 열기 · 위로 쓸어올리기', title: '도구 모음 열기' }, mkIcon('ic_chevron_up', 20, '#FFFFFF'));
-    this.dockHandle.addEventListener('click', () => this.showFullscreenDock(false));
-    root.append(this.dockHandle);
+    // ---- full screen (Samsung Notes): the top bar and tabs go away, the tool strip stays as it is; one round button at the top right leaves it
+    this.fullscreenExit = h('button', { class: 'm-fsexit', type: 'button', 'aria-label': '전체 화면 종료', title: '전체 화면 종료 (F11 · Esc)', dataset: { tag: 'fullscreen_exit' } }, mkIcon('ic_fullscreen_exit', 20, 'currentColor'));
+    this.fullscreenExit.addEventListener('click', () => this.toggleFullscreen());
+    viewport.append(this.fullscreenExit);
 
     const mount = document.getElementById('app') || document.body;
     mount.append(root);
     this.showWelcome();
-  },
-
-  /** In full screen a finger swipe up from the bottom area brings the tool dock back (viewport touch interception). */
-  installViewportSwipe(viewport) {
-    let downX = 0, downY = 0, tracking = false, stolen = false;
-    viewport.addEventListener('pointerdown', e => {
-      if (!e.isTrusted) return;
-      if (!this.fullscreen || !this.fullscreenDock) { stolen = false; return; }
-      const r = viewport.getBoundingClientRect();
-      downX = e.clientX; downY = e.clientY; stolen = false;
-      tracking = !this.dockShown && e.pointerType === 'touch' && !PdfPageView.penRecent() && !(this.inkMode !== 0 && this.fingerInk) && (downY - r.top) > r.height - 170;
-    }, true);
-    viewport.addEventListener('pointermove', e => {
-      if (!e.isTrusted || !this.fullscreen || !this.fullscreenDock) return;
-      if (tracking && !stolen) {
-        const dy = downY - e.clientY, dx = Math.abs(e.clientX - downX);
-        if (dy > 30 && dy > dx * 1.4) {
-          stolen = true; this.showFullscreenDock(false);
-          e.target.dispatchEvent(new PointerEvent('pointercancel', { pointerId: e.pointerId, pointerType: e.pointerType, bubbles: true, cancelable: true }));
-          e.stopPropagation(); return;
-        }
-      }
-      if (stolen) e.stopPropagation();
-    }, true);
-    const end = e => { if (!e.isTrusted) return; if (stolen) { stolen = false; tracking = false; e.stopPropagation(); } };
-    viewport.addEventListener('pointerup', end, true); viewport.addEventListener('pointercancel', end, true);
   },
 
   /** Zoom pill (+ / 100% / -) at the left edge, floating "페이지 추가" button at the bottom right and the empty-state welcome card. */
@@ -1144,7 +1092,6 @@ const methods = {
       this.recentPrefs.putBoolean('keep_awake', !awake); this.applyKeepAwake();
       toast(!awake ? '읽는 동안 화면이 꺼지지 않습니다' : '화면 자동 꺼짐을 따릅니다');
     }).tint('#8E8E93').selected(awake));
-    rows.push(new Row('전체 화면 메뉴 계속 표시', 'ic_float', () => this.toggleDockPinned()).tint('#8E8E93').selected(this.dockPinned()));
     rows.push(new Row('도구 모음 위치·방향', 'ic_float', () => later(() => this.showBarLayoutMenu(anchor))).tint('#8E8E93'));
     if (doc) rows.push(new Row('인쇄', 'ic_print', () => this.callUi2('printDocument')).tint('#007AFF'));
     rows.push(Row.divider());
@@ -1664,6 +1611,7 @@ const methods = {
     this.paintTool(this.inkButton, !!this.writeMode, ACTIVE_BG, ACTIVE_FG);
     this.paintTool(this.textButton, typing, ACTIVE_BG, ACTIVE_FG);
     this.paintTool(this.lassoButton, this.pageView != null && this.pageView.isLassoMode(), ACTIVE_BG, ACTIVE_FG);
+    if (this.syncTextDock) this.syncTextDock();
   },
   stopInk() { this.leaveHighlighter(); this.leaveTape(); this.pageView.setLassoMode(false); this.inkMode = 0; this.pageView.setInkTool(0, this.inkColor, this.inkWidth); this.updateInkButton(); },
   /** hl: the stroke is the ink highlighter (형광펜); only modes 1 (free) and 3 (straight) can be one. */
@@ -1776,40 +1724,7 @@ const methods = {
   },
 
   // ============================================================ fullscreen
-  /** The bottom menu and the full-screen floating dock never show together: the dock exists only in full screen, the bar only outside it. */
-  enforceChrome() {
-    if (this.bottomBar) this.bottomBar.style.display = this.fullscreen ? 'none' : '';
-    if (!this.fullscreen && this.fullscreenDock) {
-      this.dockShown = false; clearTimeout(this._dockTimer); clearTimeout(this._dockHideEnd);
-      this.fullscreenDock.style.transition = 'none'; this.fullscreenDock.style.display = 'none';
-      if (this.dockHandle) this.dockHandle.style.display = 'none';
-    }
-  },
-  showFullscreenDock(brief) {
-    if (!this.fullscreen) { this.enforceChrome(); return; }
-    this.dockShown = true;
-    this.dockHandle.style.display = 'none';
-    clearTimeout(this._dockTimer); clearTimeout(this._dockHideEnd);
-    const d = this.fullscreenDock;
-    this.dockGrip.style.display = this.dockPinned() ? '' : 'none';
-    if (this.dockPinned()) { d.style.transition = 'none'; d.style.display = 'flex'; d.style.opacity = '1'; d.style.transform = 'none'; this.applyFloatPos(d, 'dock'); return; }
-    d.style.translate = '';
-    d.style.transition = 'none'; d.style.display = 'flex'; d.style.opacity = '0'; d.style.transform = 'translateY(60px)';
-    void d.offsetWidth;
-    d.style.transition = 'opacity 180ms ease-in-out, transform 180ms ease-in-out'; d.style.opacity = '1'; d.style.transform = 'translateY(0)';
-    this._dockTimer = setTimeout(this.dockHider, brief ? 3500 : 6000);
-  },
-  hideFullscreenDock(animate) {
-    if (this.fullscreen && animate && this.dockPinned()) return;
-    this.dockShown = false; clearTimeout(this._dockTimer); clearTimeout(this._dockHideEnd);
-    this.dockHandle.style.display = 'none';
-    const d = this.fullscreenDock;
-    if (!this.fullscreen || !animate) { d.style.transition = 'none'; d.style.display = 'none'; return; }
-    d.style.transition = 'opacity 160ms ease-in-out, transform 160ms ease-in-out'; d.style.opacity = '0'; d.style.transform = 'translateY(60px)';
-    // once the dock is gone a small ⌃ handle stays, so the way back to the menu is visible
-    this._dockHideEnd = setTimeout(() => { if (!this.dockShown) { d.style.display = 'none'; if (this.fullscreen) this.dockHandle.style.display = 'flex'; } }, 170);
-  },
-  // ---- floating menus: the bottom bar as a draggable pill, the fullscreen toolbar that stays open
+  // ---- floating menus: the bottom bar as a draggable pill
   /** 'bottom' | 'float' | 'left' | 'right' (migrates the old float_bar flag). */
   barPlace() { const p = this.recentPrefs.getString('bar_place', null); return p || (this.recentPrefs.getBoolean('float_bar', false) ? 'float' : 'right'); },
   /** The place actually used: a side rail needs room, so a narrow window (phone-like) gets the bar at the bottom. */
@@ -1835,17 +1750,8 @@ const methods = {
     rows.push(new Row('플로팅 툴바 표시', 'ic_ink', () => this.setWriteStripShown(!this.writeStripShown())).tint('#5856D6').selected(this.writeStripShown()));
     AnchoredMenu.show(anchor, true, rows, null);
   },
-  dockPinned() { return this.recentPrefs.getBoolean('dock_pinned', false); },
   /** Floating toolbar on / off; off docks it back at the right edge (the default place). */
   toggleFloatBar() { this.setBarPlace(this.floatBar() ? 'right' : 'float'); },
-  toggleDockPinned() {
-    const on = !this.dockPinned(); this.recentPrefs.putBoolean('dock_pinned', on);
-    if (this.fullscreen) {
-      if (on) this.showFullscreenDock(false);
-      else { const d = this.fullscreenDock; d.style.translate = ''; this.dockGrip.style.display = 'none'; clearTimeout(this._dockTimer); this._dockTimer = setTimeout(this.dockHider, 3500); }
-    }
-    toast(on ? '전체 화면에서도 도구 모음이 계속 떠 있습니다 (왼쪽 ⋮⋮를 끌어 옮기기)' : '전체 화면 도구 모음이 자동으로 숨습니다');
-  },
   applyBarMode() {
     const place = this.effectiveBarPlace(), vert = this.barVertical(), b = this.bottomBar;
     b.style.translate = '';
@@ -1859,7 +1765,8 @@ const methods = {
     else if (place === 'left') this.studySplit.prepend(b);
     else if (place === 'float') { this.root.append(b); this.applyFloatPos(b, vert ? 'barv' : 'bar'); }
     else this.contentCol.append(b);
-    this.railMargin(); this.enforceChrome(); this.reclampFloaters();
+    this.railMargin(); this.reclampFloaters();
+    if (this.textDock) { this.commitInlineText(); if (this.textDock) { this.textDock.remove(); this.textDock = null; this.textProxy = null; this.root.classList.remove('m-textdock-r'); } if (this.syncTextDock) this.syncTextDock(); }
   },
   /** Rails live inside the content column now, so no padding is needed; kept for callers. */
   railMargin() { this.root.classList.remove('m-pad-l', 'm-pad-r'); },
@@ -1908,16 +1815,14 @@ const methods = {
     });
     return g;
   },
+  /** Samsung Notes full screen: only the top bar and the tab strip hide; the tool strip and its panels keep their place. */
   toggleFullscreen() {
     this.fullscreen = !this.fullscreen;
     const disp = this.fullscreen ? 'none' : '';
-    this.header.style.display = disp; this.tabStrip.style.display = disp; this.bottomBar.style.display = disp; this.railMargin();
-    if (this.fullscreen) {
-      this.showFullscreenDock(true);
-      let hints = 0; try { hints = +localStorage.getItem('hdnotes.fullscreenHint') || 0; } catch { /* ignore */ }
-      if (hints < 3) { try { localStorage.setItem('hdnotes.fullscreenHint', String(hints + 1)); } catch { /* ignore */ } toast('메뉴는 화면 아래에서 위로 쓸어올리거나 아래쪽 ⌃ 버튼을 누르면 다시 나옵니다'); }
-    } else this.hideFullscreenDock(false);
+    this.header.style.display = disp; this.tabStrip.style.display = disp;
+    this.root.classList.toggle('m-full', this.fullscreen);
     host.call('window.fullscreen', { on: this.fullscreen }).catch(() => {});
+    this.reclampFloaters();
   },
   /** Back button == Esc: selection popup (desktop), inline text, search panel, full screen. Returns true when handled. */
   onBackPressed() {

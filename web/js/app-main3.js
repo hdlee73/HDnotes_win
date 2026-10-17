@@ -128,8 +128,7 @@ const methods = {
     sections.push(section('읽기 편의', [tile('화면 켜 둠', 'ic_clock', () => {
       prefs.putBoolean('keep_awake', !awake); this.applyKeepAwake(); this.toast(!awake ? '읽는 동안 화면이 꺼지지 않습니다' : '화면 자동 꺼짐을 따릅니다');
     }, { selected: awake }),
-      tile('하단 메뉴 위치·방향', 'ic_float', () => this.showBarLayoutMenu(this.bottomBar)),
-      tile('전체 화면 메뉴 계속 표시', 'ic_float', () => this.toggleDockPinned(), { selected: this.dockPinned() })]));
+      tile('하단 메뉴 위치·방향', 'ic_float', () => this.showBarLayoutMenu(this.bottomBar))]));
     sections.push(section('인쇄', [
       tile('인쇄', 'ic_print', () => this.callUi2('printDocument'))]));
     sections.push(section('도움말', [tile('사용법', 'ic_outline', () => this.showHelp()),
@@ -198,11 +197,14 @@ const methods = {
     return null;
   },
   redrawPages() { for (const v of this.allPageViews()) v.invalidate(); },
+  /** The text box under a tap, with a small margin around it (the editor's frame and padding sit a few px outside the saved box). */
   elementAt(page, x, y) {
     if (!this.store) return null;
+    const view = this.viewForPage(page), r = view ? view.pageRect() : null;
+    const sx = r && r.width() > 0 ? 12 / r.width() : .012, sy = r && r.height() > 0 ? 12 / r.height() : .008;
     for (let i = this.store.elements.length - 1; i >= 0; i--) {
       const e = this.store.elements[i];
-      if (e.page === page && e.kind === 'text' && x >= e.left && x <= e.right && y >= e.top && y <= e.bottom) return e;
+      if (e.page === page && e.kind === 'text' && x >= e.left - sx && x <= e.right + sx && y >= e.top - sy && y <= e.bottom + sy) return e;
     }
     return null;
   },
@@ -240,7 +242,7 @@ const methods = {
     if (!view) { await this.showPage(element.page); view = this.viewForPage(element.page); }
     if (!view) return;
     const layer = this.viewportLayer; if (getComputedStyle(layer).position === 'static') layer.style.position = 'relative';
-    this.inlineElement = element; this.inlineFresh = fresh; this.inlineStore = this.store; this.inlineView = view;
+    this.inlineElement = element; this.inlineFresh = fresh; this.inlineStore = this.store; this.inlineView = view; this.textProxy = null;
     AnnotationPainter.skip = element; this.redrawPages();
     const e = element;
     const edit = this.inlineEdit = h('textarea', { class: 'm3-inline-text', dataset: { tag: 'inline_text' }, placeholder: '글을 입력하세요', spellcheck: 'false', rows: 1 });
@@ -312,10 +314,10 @@ const methods = {
     this.placeInlineBar(top, editBottom);
   },
   /** Keeps the toolbar clear of the text being typed: above the box first (the keyboard covers the lower part), else below, else at the top. */
-  showInlineBar(shown) { if (this.inlineBar) this.inlineBar.style.display = shown ? '' : 'none'; },
+  showInlineBar(shown) { if (this.inlineBar && !this.inlineBar.classList.contains('docked')) this.inlineBar.style.display = shown ? '' : 'none'; },
   placeInlineBar(editTop, editBottom) {
     const bar = this.inlineBar, layer = this.viewportLayer;
-    if (!bar || !layer || layer.clientHeight <= 0) return;
+    if (!bar || !layer || layer.clientHeight <= 0 || bar.classList.contains('docked')) return;
     const barH = bar.offsetHeight > 0 ? bar.offsetHeight : 42, H = layer.clientHeight, gap = 4;
     let topMargin;
     if (editTop - 36 - barH - gap >= 2) topMargin = editTop - 36 - barH - gap;
@@ -335,7 +337,14 @@ const methods = {
     if (handle.style.top !== top + 'px') handle.style.top = top + 'px';
   },
   applyInlineStyle() {
-    const edit = this.inlineEdit, e = this.inlineElement; if (!edit || !e) return;
+    const edit = this.inlineEdit, e = this.inlineElement;
+    if (!edit || !e) {   // the text panel with no box open: it sets the style of the next text box
+      const p = this.textProxy; if (!p) return;
+      this.saveTextStyle(p); if (this._inlineSync) this._inlineSync();
+      if (this.inlineSize) this.inlineSize.textContent = this.pointsOf(p) + 'pt';
+      if (this.inlineLine) this.inlineLine.textContent = p.line().toFixed(2);
+      return;
+    }
     const tf = AnnotationPainter.typeface(e.font, e.bold, e.italic);
     edit.style.fontFamily = tf.family; edit.style.fontWeight = tf.getStyle() & 1 ? '700' : '400'; edit.style.fontStyle = tf.getStyle() & 2 ? 'italic' : 'normal';
     edit.style.color = css(e.color | 0xFF000000);
@@ -382,12 +391,15 @@ const methods = {
     const all = edit.value, at = Math.max(0, edit.selectionStart), start = at === 0 ? 0 : all.lastIndexOf('\n', at - 1) + 1; let end = all.indexOf('\n', start);
     return AnnotationStore.PageElement.markerKind(all.substring(start, end < 0 ? all.length : end));
   },
+  /** The box being typed, or else the text panel's default style. */
+  textTarget() { return this.inlineElement || this.textProxy || null; },
   setInlineFont(id) {
-    if (!this.inlineElement || !AnnotationStore.PageElement.FONTS.includes(id)) return;
-    this.inlineElement.font = id; if (this.inlineFontLabel) this.inlineFontLabel(); this.applyInlineStyle();
+    const e = this.textTarget();
+    if (!e || !AnnotationStore.PageElement.FONTS.includes(id)) return;
+    e.font = id; if (this.inlineFontLabel) this.inlineFontLabel(); this.applyInlineStyle();
   },
   changeInlineLine(delta) {
-    const e = this.inlineElement; if (!e) return;
+    const e = this.textTarget(); if (!e) return;
     const next = Math.max(.8, Math.min(4, Math.round((e.line() + delta) * 20) / 20));
     e.lineSpacing = Math.abs(next - AnnotationStore.PageElement.DEFAULT_LINE) < .001 ? 0 : next; this.applyInlineStyle();
   },
@@ -412,9 +424,9 @@ const methods = {
     this.toast('줄간격 ' + e.line().toFixed(2) + ' · ' + NotebookFiles.PAPER_NAMES[kind] + ' 줄에 맞춤');
   },
   changeInlineSize(delta) {
-    if (!this.inlineElement) return;
-    const points = Math.max(8, Math.min(72, this.pointsOf(this.inlineElement) + delta));
-    this.inlineElement.textSize = points / TEXT_PAGE_POINTS; this.applyInlineStyle();
+    const e = this.textTarget(); if (!e) return;
+    const points = Math.max(8, Math.min(72, this.pointsOf(e) + delta));
+    e.textSize = points / TEXT_PAGE_POINTS; this.applyInlineStyle();
   },
   /** Typing toolbar (icon buttons, Samsung Notes style): row 1 Aa . B I U . size . delete . done; row 2 align L/C/R . bullet / number / check list.
    *  The font and colour rows open only when "Aa" is tapped. */
@@ -464,7 +476,8 @@ const methods = {
     const lp = tbtn(icon('ic_plus', 18, 'currentColor'), '줄간격 넓게', 'text_line_more', () => this.changeInlineLine(.05));
     lineRow.append(h('div', { class: 'm3-line-label' }, '줄간격'), lm, this.inlineLine, lp, fit);
     row.append(style, bold, italic, underline, strike, h('div', { class: 'm3-sep' }), minus, this.inlineSize, plus, h('div', { style: { flex: '1' } }));
-    row.append(iconButton('ic_delete', '글상자 삭제', DANGER, () => this.deleteInlineText(), 34, 34, 7));
+    const del = iconButton('ic_delete', '글상자 삭제', DANGER, () => this.deleteInlineText(), 34, 34, 7);
+    row.append(del);
     const done = iconButton('ic_check', '입력 완료', 0xFFFFFFFF | 0, () => this.commitInlineText(), 34, 34, 7);
     done.dataset.tag = 'text_done'; done.style.background = css(ACCENT); done.style.borderRadius = '17px'; done.style.marginLeft = '4px';
     row.append(done);
@@ -480,8 +493,48 @@ const methods = {
       aligns.forEach(a => mark(a.b, al === a.v)); lists.forEach(l => mark(l.b, ck === l.v));
     };
     card.append(row, row2, panel);
+    if (this.textDockSide()) {
+      // Samsung Notes: the text tools open as a panel beside the tool strip, like the pen and eraser panels
+      const live = this.inlineElement === e, sec = t => h('div', { class: 'm-pp-sec' }, t), line = (...k) => h('div', { class: 'm3-dock-row' }, ...k);
+      card.textContent = ''; card.classList.add('docked');
+      const actions = h('div', { class: 'm3-dock-actions' }, del, done);
+      if (!live) { actions.style.display = 'none'; fit.disabled = true; lists.forEach(l => { l.b.disabled = true; }); }
+      card.append(h('div', { class: 'm-pp-title' }, '텍스트'), sec('글꼴'), faces, sec('글자 크기'), line(minus, this.inlineSize, plus),
+        sec('글자 모양'), line(bold, italic, underline, strike), sec('정렬 · 목록'), line(...aligns.map(a => a.b), h('div', { class: 'm3-sep' }), ...lists.map(l => l.b)),
+        sec('색상'), palette, sec('줄간격'), line(lm, this.inlineLine, lp), fit, actions);
+      this.ensureTextDock().append(card);
+    } else this.viewportLayer.append(card);
     this.inlineBar = card;
-    this.viewportLayer.append(card);
+  },
+  /** 'left' / 'right' when the tool strip is a side rail: the text tools then dock beside it; null = the floating bar over the box. */
+  textDockSide() { const p = this.studySplit && this.bottomBar && this.effectiveBarPlace ? this.effectiveBarPlace() : null; return p === 'left' || p === 'right' ? p : null; },
+  ensureTextDock() {
+    const side = this.textDockSide();
+    let dock = this.textDock;
+    if (!dock) {
+      dock = this.textDock = h('div', { class: 'm3-textdock', dataset: { tag: 'text_panel' } });
+      dock.addEventListener('pointerdown', ev => ev.stopPropagation());
+    }
+    dock.textContent = '';
+    dock.classList.toggle('left', side === 'left');
+    const rail = this.bottomBar, w = rail ? rail.offsetWidth : 0;
+    dock.style.left = side === 'left' ? w + 'px' : ''; dock.style.right = side === 'left' ? '' : w + 'px';
+    if (dock.parentElement !== this.studySplit) this.studySplit.append(dock);
+    this.root.classList.toggle('m-textdock-r', side !== 'left');   // the full screen exit button steps left of the panel
+    return dock;
+  },
+  /** Keeps the text panel in step with the tools: shown while typing (or a text box is open) and the strip is a side rail. */
+  syncTextDock() {
+    if (!this.studySplit) return;
+    const want = this.renderer != null && this.textDockSide() != null && (this.inlineElement != null || this.typingActive());
+    if (!want) {
+      if (this.textDock) { this.textDock.remove(); this.textDock = null; this.root.classList.remove('m-textdock-r'); }
+      if (this.textProxy) { this.textProxy = null; this.inlineBar = null; this._inlineSync = null; this.inlineSize = this.inlineLine = null; }
+      return;
+    }
+    if (this.inlineElement != null || (this.textProxy && this.textDock && this.textDock.isConnected)) return;
+    const p = this.textProxy = new AnnotationStore.PageElement(); p.kind = 'text'; this.loadTextStyle(p);
+    this.buildInlineBar(p); this.applyInlineStyle();
   },
   removeInlineViews() {
     AnnotationPainter.skip = null;
@@ -505,14 +558,14 @@ const methods = {
       if (target) target.save();
       this.saveTextStyle(e);
     }
-    this.redrawPages();
+    this.redrawPages(); this.syncTextDock();
   },
   deleteInlineText() {
     if (!this.inlineElement) return;
     const e = this.inlineElement, target = this.inlineStore, fresh = this.inlineFresh;
     this.removeInlineViews();
     if (!fresh && target) { const i = target.elements.indexOf(e); if (i >= 0) target.elements.splice(i, 1); target.save(); }
-    this.redrawPages();
+    this.redrawPages(); this.syncTextDock();
   },
 
   // ================================================================== iOS-style action sheet and editor card
@@ -728,7 +781,7 @@ export function installMain3(cls) {
 export function initMain3(app) {
   // only fill what part 1/2 have not set up already
   const dflt = (k, v) => { if (app[k] === undefined) app[k] = v; };
-  for (const k of ['inlineEdit', 'inlineElement', 'inlineStore', 'inlineView', 'inlineMove', 'inlineResize', 'inlineDelete', 'inlineBar', 'inlineSize',
+  for (const k of ['inlineEdit', 'inlineElement', 'inlineStore', 'inlineView', 'inlineMove', 'inlineResize', 'inlineDelete', 'inlineBar', 'inlineSize', 'textDock', 'textProxy',
     'recorder', 'recordingFile', 'recordingStore', 'recorderBar', 'recorderTime', 'lassoBar']) dflt(k, null);
   dflt('inlineFresh', false); dflt('recordingStarted', 0); dflt('recordingPage', 0);
   app.lassoShape = prefs.getInt('lasso_shape', 0);

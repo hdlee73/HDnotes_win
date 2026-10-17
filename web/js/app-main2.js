@@ -1278,9 +1278,11 @@ async function assetRatio(name) {
 }
 M.createPlacedElement = async function (page, x, y) {
   if (this.placementKind === 'text') {
+    const wasOpen = this.inlineElement != null;
     this.commitInlineText();
     const existing = this.elementAt(page, x, y);
     if (existing) { this.beginInlineText(existing, false); return; }
+    if (wasOpen) return;   // Samsung Notes: a tap beside the open text box only closes it; the next tap starts a new box
     this.beginInlineText(this.newTextBox(page, x, y), true); return;
   }
   const element = new PageElement(); element.page = page; element.kind = this.placementKind; element.asset = this.placementAsset; element.text = this.placementText; this.placementText = ''; element.rot = this.placementRot || 0; this.placementRot = 0;

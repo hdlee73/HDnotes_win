@@ -85,3 +85,14 @@
 .m-elbtn:focus{outline:none}
 .m-elbtn[data-tag=element_delete]{color:#FF3B30}
 @media (max-width:640px){.m-elbtn .t{display:none}.m-elbtn{padding:0 9px}}
+/* text panel docked beside the side tool strip (Samsung Notes), drawn like the pen panel */
+.m3-textdock{position:absolute;top:0;bottom:0;width:272px;z-index:50;background:#FCFCFF;border-left:1px solid #E4E4E7;box-shadow:-4px 0 14px rgba(0,0,0,.06);overflow-y:auto;box-sizing:border-box}
+.m3-textdock.left{border-left:0;border-right:1px solid #E4E4E7;box-shadow:4px 0 14px rgba(0,0,0,.06)}
+.m3-inline-bar.docked{position:static;transform:none;width:auto;max-width:none;overflow:visible;background:transparent;border-radius:0;box-shadow:none;padding:12px 12px 16px}
+.m3-inline-bar.docked>*{width:auto;min-width:0}
+.m3-inline-bar.docked .m3-fontbox{margin:2px 0 4px}
+.m3-dock-row{display:flex;align-items:center;flex-wrap:wrap;gap:2px;padding:2px 0 4px}
+.m3-inline-bar.docked .m2-swatches{flex-wrap:wrap;height:auto!important;gap:6px 0;padding:2px 0 4px}
+.m3-inline-bar.docked .m3-fit-ruler{margin:6px 0 0;width:100%}
+.m3-inline-bar.docked .m3-tbtn:disabled,.m3-inline-bar.docked .m3-fit-ruler:disabled{opacity:.35;cursor:default}
+.m3-dock-actions{display:flex;justify-content:flex-end;align-items:center;gap:6px;padding-top:14px;margin-top:10px;border-top:1px solid #ECECF1}
