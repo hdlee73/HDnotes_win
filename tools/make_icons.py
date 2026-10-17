@@ -1,5 +1,5 @@
 """One step from the master icon to every Windows icon asset.
-Master: web/assets/hdnotes-icon.svg (isometric paper stack and pen on a mint plate; the plate is part of the drawing; installer/hdnotes-icon.svg is a copy of it).
+Master: web/assets/hdnotes-icon.svg (notebook with a bookmark and a pen on a blue plate; the plate is part of the drawing; installer/hdnotes-icon.svg is a copy of it).
 Writes: host/Assets/app.ico (WPF window + exe), installer/hdnotes.ico (Setup), installer/wizard-large.bmp + wizard-small.bmp,
         web/assets/hdnotes-icon-256.png / -512.png / favicon-32.png / favicon.svg.
 To swap the concept: replace web/assets/hdnotes-icon.svg and run  python tools/make_icons.py
@@ -41,11 +41,11 @@ shutil.copy(ico, os.path.join(root, 'installer/hdnotes.ico'))
 png(512).save(os.path.join(root, 'web/assets/hdnotes-icon-512.png'))
 png(256).save(os.path.join(root, 'web/assets/hdnotes-icon-256.png'))
 png(32).save(os.path.join(root, 'web/assets/favicon-32.png'))
-fav = re.sub(r'<svg([^>]*)>', lambda m: '<svg' + m.group(1) + '>\n  <title>HDnotes</title>', svg, count=1)
+fav = svg if '<title>' in svg else re.sub(r'<svg([^>]*)>', lambda m: '<svg' + m.group(1) + '>\n  <title>HDnotes</title>', svg, count=1)
 open(os.path.join(root, 'web/assets/favicon.svg'), 'w', encoding='utf-8').write(fav)
 
-# Inno Setup wizard images (BMP, no alpha): large 164x314 with the plate's green gradient, small 55x55 on white
-top, bot = (0x63, 0xE6, 0xBE), (0x12, 0xB8, 0x86)
+# Inno Setup wizard images (BMP, no alpha): large 164x314 with the plate's blue gradient, small 55x55 on white
+top, bot = (0x4F, 0x8C, 0xFF), (0x1E, 0x3A, 0x8A)
 big = Image.new('RGB', (164, 314))
 for y in range(314):
     t = y / 313
@@ -53,7 +53,7 @@ for y in range(314):
     for x in range(164): big.putpixel((x, y), c)
 ic = png(110)
 shadow = Image.new('RGBA', ic.size, (0, 0, 0, 0)); shadow.putalpha(ic.getchannel('A').point(lambda a: a * 0.25))
-big.paste((6, 70, 60), (27 + 0, 92 + 4), shadow)
+big.paste((11, 31, 92), (27 + 0, 92 + 4), shadow)
 big.paste(ic, (27, 92), ic)
 big.save(os.path.join(root, 'installer/wizard-large.bmp'))
 sm = Image.new('RGB', (55, 55), (255, 255, 255)); i = png(55); sm.paste(i, (0, 0), i)
