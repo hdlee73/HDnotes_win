@@ -11,7 +11,7 @@
     <RootNamespace>PdfNote</RootNamespace>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <Version>1.1.1</Version>
+    <Version>1.1.2</Version>
     <Product>HDnotes</Product>
     <AssemblyTitle>HDnotes</AssemblyTitle>
     <Description>HDnotes - PDF/document notes with pen and typing</Description>
